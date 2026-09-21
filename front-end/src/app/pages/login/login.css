@@ -1,0 +1,14 @@
+.login-form { display: grid; gap: 1rem; margin-top: 1rem; }
+.login-form .alert { margin: 0; }
+
+.role-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; border: 0; padding: 0; margin: 0; }
+.role-toggle legend { font-size: .9rem; font-weight: 500; margin-bottom: .35rem; }
+.role-toggle label {
+  display: flex; align-items: center; justify-content: center; gap: .4rem; padding: .6rem;
+  border: 1px solid var(--border); border-radius: 8px; cursor: pointer; font-weight: 500;
+}
+.role-toggle label.active { border-color: var(--primary); background: var(--info-bg); color: var(--primary); }
+.role-toggle input { accent-color: var(--primary); }
+
+.btn-block { width: 100%; justify-content: center; }
+.hint { margin: 1rem 0 0; text-align: center; }

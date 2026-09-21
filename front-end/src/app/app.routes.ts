@@ -20,16 +20,16 @@ export const routes: Routes = [
       {
         path: '',
         loadComponent: () =>
-          import('./pages/admin/admin-dashboard').then((m) => m.AdminDashboardPage),
+          import('./pages/admin/admin-dashboard/admin-dashboard').then((m) => m.AdminDashboardPage),
       },
       {
         path: 'assessments/new',
         loadComponent: () =>
-          import('./pages/admin/assessment-form').then((m) => m.AssessmentFormPage),
+          import('./pages/admin/assessment-form/assessment-form').then((m) => m.AssessmentFormPage),
       },
       {
         path: 'questions/new',
-        loadComponent: () => import('./pages/admin/question-new').then((m) => m.QuestionNewPage),
+        loadComponent: () => import('./pages/admin/question-new/question-new').then((m) => m.QuestionNewPage),
       },
     ],
   },

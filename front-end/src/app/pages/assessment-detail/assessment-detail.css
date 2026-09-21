@@ -1,0 +1,7 @@
+.question-list { list-style: none; padding: 0; margin: 0; display: grid; gap: .75rem; }
+.question-row { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.question-info { display: flex; align-items: center; gap: .75rem; }
+.question-info > div { display: flex; flex-direction: column; }
+.question-actions { display: flex; align-items: center; gap: .75rem; }
+
+.finish-hint { text-align: right; }

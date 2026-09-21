@@ -1,0 +1,29 @@
+.console {
+  background: var(--console-bg); color: var(--console-text); border-radius: var(--radius);
+  padding: 0 0 .75rem; font-size: .85rem; overflow: hidden;
+}
+.console-header {
+  padding: .5rem 1rem; background: #1f2937; font-weight: 600; font-size: .8rem;
+  text-transform: uppercase; letter-spacing: .05em;
+}
+.console-kind { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9ca3af; }
+
+.console-line, .console-status, .console-summary, .console-errors, .console-label { margin: .5rem 1rem 0; }
+.console-status { font-weight: 600; }
+.console-status.ok, .console-summary .ok { color: #4ade80; }
+.console-status.fail, .console-summary .fail { color: #f87171; }
+.console-errors { color: #fca5a5; padding-left: 1rem; font-family: var(--font-mono); }
+.console-label { color: #9ca3af; font-size: .75rem; text-transform: uppercase; }
+.console-pre {
+  margin: .35rem 1rem 0; padding: .6rem; background: #030712; border-radius: 6px;
+  white-space: pre-wrap; overflow-x: auto;
+}
+.console-pre.error { color: #fca5a5; }
+.console-summary { display: flex; flex-wrap: wrap; gap: 1rem; padding-top: .5rem; border-top: 1px solid #374151; }
+
+/* Tabla de casos sobre fondo oscuro */
+.console .console-table { margin: .5rem 1rem 0; width: calc(100% - 2rem); }
+.console .console-table th, .console .console-table td { border-color: #374151; }
+.console .console-table th { color: #9ca3af; }
+.row-fail td { background: rgba(248, 113, 113, .08); }
+.cell-error { color: #fca5a5; font-size: .8rem; white-space: pre-wrap; }

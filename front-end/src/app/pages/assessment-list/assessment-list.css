@@ -1,0 +1,13 @@
+.assessment-card { display: flex; flex-direction: column; }
+.assessment-card h2 { margin-top: 0; }
+.assessment-card .description { flex: 1; }
+
+.card-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; }
+.card-title-row .badge { flex-shrink: 0; margin-top: .2rem; }
+
+.meta { display: flex; gap: 2rem; margin: 0 0 1rem; }
+.meta dt { color: var(--muted); font-size: .8rem; }
+.meta dd { margin: 0; font-weight: 600; }
+
+.last-result { margin: 0 0 1rem; font-size: .9rem; }
+.card-actions { display: flex; gap: .5rem; flex-wrap: wrap; }

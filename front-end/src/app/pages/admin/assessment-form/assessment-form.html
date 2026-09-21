@@ -1,0 +1,83 @@
+<a routerLink="/admin" class="back">← Panel del evaluador</a>
+<h1>Nuevo assessment</h1>
+
+<form class="admin-form card" (submit)="save($event)" novalidate>
+  <div class="form-grid">
+    <label class="field span-2">
+      Nombre
+      <input [value]="title()" (input)="title.set(val($event))" placeholder="Assessment Full Stack Cloud" />
+    </label>
+    <label class="field">
+      Tiempo límite (minutos)
+      <input type="number" min="1" [value]="duration()" (input)="duration.set(+val($event))" />
+    </label>
+  </div>
+  <label class="field">
+    Descripción
+    <textarea rows="3" [value]="description()" (input)="description.set(val($event))"></textarea>
+  </label>
+
+  <fieldset class="field-group">
+    <legend>Preguntas ({{ selected().length }} seleccionadas · {{ totalPoints() }} pts)</legend>
+
+    @if (selected().length) {
+      <ol class="selected-list">
+        @for (q of selected(); track q.id; let i = $index, last = $last) {
+          <li>
+            <span class="order">{{ i + 1 }}</span>
+            <span class="grow">{{ q.title }} <span class="muted">· {{ q.points }} pts</span></span>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="move(i, -1)" [disabled]="i === 0" aria-label="Subir">↑</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="move(i, 1)" [disabled]="last" aria-label="Bajar">↓</button>
+            <button type="button" class="btn btn-ghost btn-sm" (click)="toggle(q)" aria-label="Quitar">✕</button>
+          </li>
+        }
+      </ol>
+    } @else {
+      <p class="muted small">Selecciona preguntas del banco o crea una nueva.</p>
+    }
+
+    <div class="bank-header">
+      <strong>Banco de preguntas</strong>
+      @if (!creatingQuestion()) {
+        <button type="button" class="btn btn-sm-pad" (click)="creatingQuestion.set(true)">+ Nueva pregunta</button>
+      }
+    </div>
+    @if (loadingBank()) {
+      <p class="muted small">Cargando preguntas…</p>
+    }
+    <ul class="bank-list">
+      @for (q of bank(); track q.id) {
+        <li>
+          <label class="check">
+            <input type="checkbox" [checked]="isSelected(q.id)" (change)="toggle(q)" />
+            <span>{{ q.title }}</span>
+            <span class="muted">· {{ q.points }} pts</span>
+          </label>
+        </li>
+      }
+    </ul>
+  </fieldset>
+
+  @if (submitted() && problems().length) {
+    <ul class="alert alert-error problem-list">
+      @for (p of problems(); track p) { <li>{{ p }}</li> }
+    </ul>
+  }
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+  <div class="form-actions">
+    <a routerLink="/admin" class="btn btn-ghost">Cancelar</a>
+    <button type="submit" class="btn btn-primary" [disabled]="saving() || creatingQuestion()">
+      {{ saving() ? 'Guardando…' : 'Crear assessment' }}
+    </button>
+  </div>
+</form>
+
+@if (creatingQuestion()) {
+  <section class="card nested-form">
+    <h2>Nueva pregunta</h2>
+    <p class="muted small">Al guardarla se agrega al banco y queda seleccionada para este assessment.</p>
+    <app-question-form [cancellable]="true" (created)="onQuestionCreated($event)" (cancelled)="creatingQuestion.set(false)" />
+  </section>
+}

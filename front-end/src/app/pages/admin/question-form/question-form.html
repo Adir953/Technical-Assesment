@@ -1,0 +1,96 @@
+<form class="admin-form" (submit)="save($event)" novalidate>
+  <div class="form-grid">
+    <label class="field span-2">
+      Título
+      <input [value]="title()" (input)="title.set(val($event))" placeholder="Encuentra el número máximo" />
+    </label>
+    <label class="field">
+      Puntaje
+      <input type="number" min="1" [value]="points()" (input)="points.set(+val($event))" />
+    </label>
+  </div>
+
+  <label class="field">
+    Descripción
+    <textarea rows="4" [value]="description()" (input)="description.set(val($event))"
+              placeholder="Dado un arreglo de números, retorne el valor máximo."></textarea>
+  </label>
+
+  <fieldset class="field-group">
+    <legend>Lenguajes permitidos y código inicial</legend>
+    <p class="muted small">El runner llama a la primera función del código inicial (en Java, al primer método público de <code>Solution</code>).</p>
+    <div class="language-checks">
+      @for (l of languages; track l.id) {
+        <label class="check">
+          <input type="checkbox" [checked]="enabled()[l.id]" (change)="toggleLanguage(l.id)" />
+          {{ l.label }}
+        </label>
+      }
+    </div>
+    @for (l of languages; track l.id) {
+      @if (enabled()[l.id]) {
+        <label class="field">
+          <span>{{ l.label }}</span>
+          <textarea class="code-input" rows="6" spellcheck="false"
+                    [value]="starters()[l.id]" (input)="setStarter(l.id, val($event))"></textarea>
+        </label>
+      }
+    }
+  </fieldset>
+
+  <fieldset class="field-group">
+    <legend>Casos de prueba</legend>
+    <p class="muted small">
+      La entrada es un arreglo JSON con los argumentos de la función, p. ej. <code>[[3,5,1,8]]</code> para
+      un solo argumento de tipo arreglo. La salida esperada también es JSON: <code>8</code>, <code>"texto"</code>.
+    </p>
+    <p class="muted small">
+      Los casos marcados como <strong>ejemplo</strong> se muestran al estudiante y los 2 primeros se usan en
+      <em>Ejecutar</em>. Todos los casos, incluidos los ocultos, se usan al calificar la respuesta enviada.
+    </p>
+    <table class="case-table">
+      <thead><tr><th>Entrada (argumentos)</th><th>Salida esperada</th><th>Ejemplo</th><th></th></tr></thead>
+      <tbody>
+        @for (c of cases(); track $index; let i = $index) {
+          <tr>
+            <td>
+              <input class="mono" [class.invalid]="submitted() && !validInput(c.inputValue)"
+                     [value]="c.inputValue" (input)="updateCase(i, { inputValue: val($event) })" placeholder="[[3,5,1,8]]" />
+            </td>
+            <td>
+              <input class="mono" [class.invalid]="submitted() && !c.expectedOutput.trim()"
+                     [value]="c.expectedOutput" (input)="updateCase(i, { expectedOutput: val($event) })" placeholder="8" />
+            </td>
+            <td class="center">
+              <input type="checkbox" [checked]="c.isVisible" (change)="updateCase(i, { isVisible: !c.isVisible })"
+                     title="Si no es ejemplo, el caso queda oculto y solo se usa al calificar" />
+            </td>
+            <td>
+              <button type="button" class="btn btn-ghost btn-sm" (click)="removeCase(i)" [disabled]="cases().length === 1"
+                      aria-label="Eliminar caso">✕</button>
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+    <button type="button" class="btn btn-sm-pad" (click)="addCase()">+ Agregar caso</button>
+  </fieldset>
+
+  @if (submitted() && problems().length) {
+    <ul class="alert alert-error problem-list">
+      @for (p of problems(); track p) { <li>{{ p }}</li> }
+    </ul>
+  }
+  @if (error()) {
+    <div class="alert alert-error">{{ error() }}</div>
+  }
+
+  <div class="form-actions">
+    @if (cancellable()) {
+      <button type="button" class="btn btn-ghost" (click)="cancelled.emit()">Cancelar</button>
+    }
+    <button type="submit" class="btn btn-primary" [disabled]="saving()">
+      {{ saving() ? 'Guardando…' : 'Crear pregunta' }}
+    </button>
+  </div>
+</form>

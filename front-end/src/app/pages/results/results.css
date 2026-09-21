@@ -1,0 +1,15 @@
+.result-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: .85rem 1rem; border-radius: var(--radius); border: 1px solid; margin: .5rem 0 1rem;
+}
+.result-banner > div { display: flex; flex-direction: column; gap: .15rem; }
+.result-banner span { color: var(--text); font-size: .9rem; }
+.result-pass { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.result-fail { background: var(--fail-bg); border-color: var(--fail); color: var(--fail); }
+
+.retake-confirm { display: flex; flex-direction: column; gap: .5rem; align-items: flex-end; }
+.retake-confirm > span { font-size: .85rem; }
+.retake-actions { display: flex; gap: .5rem; }
+
+.progress { height: 8px; background: var(--border); border-radius: 999px; overflow: hidden; }
+.progress-bar { height: 100%; background: var(--primary); transition: width .4s; }

@@ -9,96 +9,15 @@ import {
   STATE_LABEL,
   formatDuration,
   isApproved,
-  latestByQuestion,
-  questionState,
+  questionRows,
 } from '../../core/grading';
 import type { AssessmentDetail, SubmissionDetail } from '../../core/models';
 
 @Component({
   selector: 'app-results',
   imports: [RouterLink, DatePipe],
-  template: `
-    <a routerLink="/assessments" class="back">← Assessments</a>
-    @if (error()) {
-      <div class="alert alert-error">{{ error() }}</div>
-    }
-    @if (assessment(); as a) {
-      <h1>Resultados · {{ a.title }}</h1>
-      @if (submission(); as s) {
-        @if (!s.completedAt) {
-          <div class="alert">Este intento aún está en progreso; el puntaje mostrado es parcial.</div>
-        } @else {
-          <div class="result-banner" [class]="approved() ? 'result-banner result-pass' : 'result-banner result-fail'">
-            <div>
-              <strong>{{ approved() ? '✔ Aprobado' : '✘ No aprobado' }}</strong>
-              <span>
-                Obtuviste {{ percent() }}% · se requiere {{ passingPercent }}% para aprobar.
-                Presentado el {{ s.completedAt | date: 'dd/MM/yyyy HH:mm' }}.
-              </span>
-            </div>
-            @if (confirmingRetake()) {
-              <div class="retake-confirm">
-                <span>Se iniciará un intento nuevo desde cero. Este resultado queda guardado.</span>
-                <div class="retake-actions">
-                  <button class="btn btn-ghost" [disabled]="retaking()" (click)="confirmingRetake.set(false)">Cancelar</button>
-                  <button class="btn btn-primary" [disabled]="retaking()" (click)="retake()">
-                    {{ retaking() ? 'Abriendo…' : 'Sí, volver a presentar' }}
-                  </button>
-                </div>
-              </div>
-            } @else {
-              <button class="btn" (click)="confirmingRetake.set(true)">Volver a presentar</button>
-            }
-          </div>
-        }
-      }
-
-      <section class="stats">
-        <div class="stat">
-          <span class="stat-label">Puntaje obtenido</span>
-          <span class="stat-value">{{ score() }} / {{ total() }}</span>
-          <span class="muted">{{ percent() }}%</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Preguntas correctas</span>
-          <span class="stat-value ok">{{ count('correct') }}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Preguntas incorrectas</span>
-          <span class="stat-value fail">{{ count('incorrect') + count('pending') }}</span>
-          @if (count('partial')) { <span class="muted">+ {{ count('partial') }} parciales</span> }
-        </div>
-        <div class="stat">
-          <span class="stat-label">Tiempo consumido</span>
-          <span class="stat-value">{{ elapsed() }}</span>
-          <span class="muted">de {{ a.durationMinutes }} min</span>
-        </div>
-      </section>
-
-      <div class="progress"><div class="progress-bar" [style.width.%]="percent()"></div></div>
-
-      <h2>Detalle por pregunta</h2>
-      <table class="results-table">
-        <thead>
-          <tr><th>#</th><th>Pregunta</th><th>Lenguaje</th><th>Casos</th><th>Puntaje</th><th>Estado</th></tr>
-        </thead>
-        <tbody>
-          @for (row of rows(); track row.question.id) {
-            <tr>
-              <td>{{ row.question.questionOrder }}</td>
-              <td>{{ row.question.title }}</td>
-              <td>{{ row.attempt?.programmingLanguage ?? '—' }}</td>
-              <td>{{ row.attempt ? row.attempt.passedTests + ' / ' + row.attempt.totalTests : '—' }}</td>
-              <td>{{ row.attempt?.score ?? 0 }} / {{ row.question.points }}</td>
-              <td><span class="badge badge-{{ row.state }}">{{ labels[row.state] }}</span></td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    } @else if (!error()) {
-      <p class="muted">Cargando resultados…</p>
-    }
-  `,
+  templateUrl: './results.html',
+  styleUrl: './results.css',
 })
 export class ResultsPage {
   readonly submissionId = input.required<string>();
@@ -114,14 +33,7 @@ export class ResultsPage {
   protected readonly rows = computed(() => {
     const s = this.submission();
     const a = this.assessment();
-    if (!s || !a) return [];
-    const latest = latestByQuestion(s);
-    return [...a.questions]
-      .sort((x, y) => x.questionOrder - y.questionOrder)
-      .map((question) => {
-        const attempt = latest.get(question.id);
-        return { question, attempt, state: questionState(attempt, question.points) };
-      });
+    return s && a ? questionRows(s, a) : [];
   });
   protected readonly score = computed(() => {
     const s = this.submission();

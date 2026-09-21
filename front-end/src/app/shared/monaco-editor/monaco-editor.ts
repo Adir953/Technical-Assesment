@@ -49,25 +49,8 @@ export interface EditorMarker {
 
 @Component({
   selector: 'app-monaco-editor',
-  template: `
-    <div #host class="monaco-host" [hidden]="fallback()"></div>
-    @if (fallback()) {
-      <textarea
-        class="code-fallback"
-        spellcheck="false"
-        [value]="value()"
-        (input)="valueChange.emit($any($event.target).value)"
-      ></textarea>
-    }
-  `,
-  styles: `
-    :host { display: block; height: 100%; min-height: 320px; }
-    .monaco-host, .code-fallback { width: 100%; height: 100%; min-height: 320px; }
-    .code-fallback {
-      font-family: var(--font-mono); font-size: 14px; padding: 12px; border: 0; resize: none;
-      background: #1e1e1e; color: #d4d4d4; box-sizing: border-box;
-    }
-  `,
+  templateUrl: './monaco-editor.html',
+  styleUrl: './monaco-editor.css',
 })
 export class MonacoEditor {
   readonly value = input.required<string>();

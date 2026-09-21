@@ -8,104 +8,15 @@ import {
   accumulatedScore,
   deadline,
   formatDuration,
-  latestByQuestion,
-  questionState,
+  questionRows,
 } from '../../core/grading';
 import type { AssessmentDetail, SubmissionDetail } from '../../core/models';
 
 @Component({
   selector: 'app-assessment-detail',
   imports: [RouterLink],
-  template: `
-    <a routerLink="/assessments" class="back">← Assessments</a>
-    @if (error()) {
-      <div class="alert alert-error">{{ error() }}</div>
-    }
-    @if (notice(); as n) {
-      <div class="alert alert-success" role="status">
-        <span>
-          Respuesta enviada: <strong>{{ n.title }}</strong> —
-          {{ n.passed }}/{{ n.total }} casos, {{ n.score }}/{{ n.points }} pts.
-        </span>
-        <button class="btn btn-ghost btn-sm" (click)="notice.set(null)" aria-label="Cerrar">✕</button>
-      </div>
-    }
-    @if (assessment(); as a) {
-      <header class="page-header">
-        <div>
-          <h1>{{ a.title }}</h1>
-          <p class="description">{{ a.description }}</p>
-        </div>
-      </header>
-
-      <section class="stats">
-        <div class="stat">
-          <span class="stat-label">Tiempo restante</span>
-          <span class="stat-value" [class.danger]="remainingMs() < 5 * 60_000 && !completed()">
-            {{ completed() ? '—' : remaining() }}
-          </span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Estado</span>
-          <span class="stat-value">
-            <span class="badge" [class]="completed() ? 'badge-done' : 'badge-progress'">
-              {{ completed() ? 'Finalizado' : 'En progreso' }}
-            </span>
-          </span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Puntaje acumulado</span>
-          <span class="stat-value">{{ score() }} / {{ a.totalPossiblePoints }}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-label">Respondidas</span>
-          <span class="stat-value">{{ answered() }} / {{ a.questions.length }}</span>
-        </div>
-      </section>
-
-      <h2>Preguntas</h2>
-      <ol class="question-list">
-        @for (row of rows(); track row.question.id) {
-          <li class="card question-row">
-            <div class="question-info">
-              <span class="order">{{ row.question.questionOrder }}</span>
-              <div>
-                <strong>{{ row.question.title }}</strong>
-                <span class="muted">{{ row.question.points }} pts
-                  @if (row.attempt) { · obtenido {{ row.attempt.score ?? 0 }} pts ({{ row.attempt.passedTests }}/{{ row.attempt.totalTests }} casos) }
-                </span>
-              </div>
-            </div>
-            <div class="question-actions">
-              <span class="badge badge-{{ row.state }}">{{ labels[row.state] }}</span>
-              @if (!completed()) {
-                <a class="btn" [routerLink]="['questions', row.question.id]">
-                  {{ row.attempt ? 'Reintentar' : 'Resolver' }}
-                </a>
-              }
-            </div>
-          </li>
-        }
-      </ol>
-
-      <div class="actions-end">
-        @if (completed()) {
-          <a class="btn btn-primary" routerLink="results">Ver resultados</a>
-        } @else {
-          @if (!allAnswered()) {
-            <span class="muted finish-hint">
-              Responde todas las preguntas para finalizar ({{ pendingCount() }} pendiente{{ pendingCount() === 1 ? '' : 's' }}).
-            </span>
-          }
-          <button class="btn btn-primary" [disabled]="finishing() || !allAnswered()" (click)="finish()">
-            {{ finishing() ? 'Finalizando…' : 'Finalizar assessment' }}
-          </button>
-        }
-      </div>
-    } @else if (!error()) {
-      <p class="muted">Cargando…</p>
-    }
-  `,
+  templateUrl: './assessment-detail.html',
+  styleUrl: './assessment-detail.css',
 })
 export class AssessmentDetailPage {
   readonly submissionId = input.required<string>();
@@ -129,14 +40,7 @@ export class AssessmentDetailPage {
   protected readonly rows = computed(() => {
     const s = this.submission();
     const a = this.assessment();
-    if (!s || !a) return [];
-    const latest = latestByQuestion(s);
-    return [...a.questions]
-      .sort((x, y) => x.questionOrder - y.questionOrder)
-      .map((question) => {
-        const attempt = latest.get(question.id);
-        return { question, attempt, state: questionState(attempt, question.points) };
-      });
+    return s && a ? questionRows(s, a) : [];
   });
   protected readonly answered = computed(() => this.rows().filter((r) => r.attempt).length);
   protected readonly pendingCount = computed(() => this.rows().length - this.answered());

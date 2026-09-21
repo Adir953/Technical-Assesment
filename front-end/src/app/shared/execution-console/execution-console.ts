@@ -1,6 +1,6 @@
 import { Component, computed, input } from '@angular/core';
-import type { ExecutionResult, ExecutionStatus, SolutionResult } from '../core/models';
-import { FormatArgsPipe, FormatJsonPipe } from './format-args.pipe';
+import type { ExecutionResult, ExecutionStatus, SolutionResult } from '../../core/models';
+import { FormatArgsPipe, FormatJsonPipe } from '../format-args/format-args.pipe';
 
 export interface ConsoleTest {
   input: string;
@@ -77,73 +77,8 @@ export function errorLines(message: string | null): Array<{ line: number; messag
 @Component({
   selector: 'app-execution-console',
   imports: [FormatArgsPipe, FormatJsonPipe],
-  template: `
-    <div class="console">
-      <div class="console-header">
-        Consola
-        @if (!running() && view(); as v) {
-          <span class="console-kind">
-            · {{ v.kind === 'submit' ? 'Calificación con todos los casos' : 'Prueba con casos de ejemplo (no se guarda)' }}
-          </span>
-        }
-      </div>
-      @if (running()) {
-        <p class="console-line muted">Ejecutando…</p>
-      } @else if (view(); as v) {
-        <div class="console-status" [class.ok]="compiled()" [class.fail]="!compiled()">
-          Compilación: {{ compiled() ? 'Exitosa' : 'Error' }}
-        </div>
-        <div class="console-status" [class.ok]="v.status === 'SUCCESS'" [class.fail]="v.status !== 'SUCCESS'">
-          {{ statusLabel[v.status] }}
-        </div>
-
-        @if (lines().length) {
-          <ul class="console-errors">
-            @for (l of lines(); track l.line) {
-              <li>Línea {{ l.line }}: {{ l.message }}</li>
-            }
-          </ul>
-        }
-        @if (v.error) {
-          <pre class="console-pre error">{{ v.error }}</pre>
-        }
-        @if (v.output) {
-          <div class="console-label">Salida</div>
-          <pre class="console-pre">{{ v.output }}</pre>
-        }
-
-        @if (v.tests.length) {
-          <div class="console-summary">
-            <span>{{ v.tests.length }} casos ejecutados</span>
-            <span class="ok">{{ passed() }} exitosos</span>
-            <span class="fail">{{ v.tests.length - passed() }} fallidos</span>
-            <strong>Resultado: {{ percent() }}%</strong>
-            @if (v.score) {
-              <strong>Puntaje: {{ v.score.obtained }} / {{ v.score.points }}</strong>
-            }
-          </div>
-          <table class="console-table">
-            <thead><tr><th>#</th><th>Entrada</th><th>Esperado</th><th>Obtenido</th><th></th></tr></thead>
-            <tbody>
-              @for (t of v.tests; track $index) {
-                <tr [class.row-fail]="!t.passed">
-                  <td>{{ $index + 1 }}</td>
-                  <td><code>{{ t.input | formatArgs }}</code></td>
-                  <td><code>{{ t.expected | formatJson }}</code></td>
-                  <td><code>{{ t.actual === null ? '—' : (t.actual | formatJson) }}</code>
-                    @if (t.error && t.error !== v.error) { <div class="cell-error">{{ t.error }}</div> }
-                  </td>
-                  <td>{{ t.passed ? '✔' : '✘' }}</td>
-                </tr>
-              }
-            </tbody>
-          </table>
-        }
-      } @else {
-        <p class="console-line muted">Ejecuta tu código para ver la salida y los casos de prueba.</p>
-      }
-    </div>
-  `,
+  templateUrl: './execution-console.html',
+  styleUrl: './execution-console.css',
 })
 export class ExecutionConsole {
   readonly view = input<ConsoleView | null>(null);

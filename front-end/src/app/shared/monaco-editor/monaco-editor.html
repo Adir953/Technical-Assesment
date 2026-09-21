@@ -1,0 +1,9 @@
+<div #host class="monaco-host" [hidden]="fallback()"></div>
+@if (fallback()) {
+  <textarea
+    class="code-fallback"
+    spellcheck="false"
+    [value]="value()"
+    (input)="valueChange.emit($any($event.target).value)"
+  ></textarea>
+}

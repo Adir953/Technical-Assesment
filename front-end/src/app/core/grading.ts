@@ -1,4 +1,10 @@
-import type { AssessmentSubmission, QuestionSubmission, SubmissionDetail } from './models';
+import type {
+  AssessmentDetail,
+  AssessmentSubmission,
+  OrderedQuestion,
+  QuestionSubmission,
+  SubmissionDetail,
+} from './models';
 
 /** Resumen que el editor envía a la lista de preguntas tras un envío (vía router state). */
 export interface SubmittedNotice {
@@ -47,6 +53,23 @@ export function questionState(
   const score = attempt.score ?? 0;
   if (score >= points) return 'correct';
   return score > 0 ? 'partial' : 'incorrect';
+}
+
+export interface QuestionRow {
+  question: OrderedQuestion;
+  attempt: QuestionSubmission | undefined;
+  state: QuestionState;
+}
+
+/** Preguntas del assessment en orden, cada una con su último envío y su estado. */
+export function questionRows(submission: SubmissionDetail, assessment: AssessmentDetail): QuestionRow[] {
+  const latest = latestByQuestion(submission);
+  return [...assessment.questions]
+    .sort((a, b) => a.questionOrder - b.questionOrder)
+    .map((question) => {
+      const attempt = latest.get(question.id);
+      return { question, attempt, state: questionState(attempt, question.points) };
+    });
 }
 
 export function accumulatedScore(detail: SubmissionDetail): number {

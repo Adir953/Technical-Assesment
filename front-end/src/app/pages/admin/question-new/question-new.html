@@ -1,0 +1,5 @@
+<a routerLink="/admin" class="back">← Panel del evaluador</a>
+<h1>Nueva pregunta</h1>
+<section class="card">
+  <app-question-form [cancellable]="true" (created)="done($event)" (cancelled)="back()" />
+</section>

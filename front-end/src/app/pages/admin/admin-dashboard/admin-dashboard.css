@@ -1,0 +1,4 @@
+.header-actions { display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; }
+
+/* Descripción del assessment recortada a una línea */
+.clamp { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; }

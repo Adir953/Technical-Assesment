@@ -4,15 +4,10 @@ import { firstValueFrom } from 'rxjs';
 import { ApiService, errorMessage } from '../../core/api.service';
 import { SubmittedNotice, deadline, formatDuration, latestByQuestion, questionState } from '../../core/grading';
 import type { AssessmentDetail, ProgrammingLanguage, QuestionDetail, SubmissionDetail } from '../../core/models';
-import { MonacoEditor } from '../../shared/monaco-editor';
-import { FormatArgsPipe, FormatJsonPipe } from '../../shared/format-args.pipe';
-import { ConsoleView, ExecutionConsole, errorLines, fromRun, fromSubmit } from '../../shared/execution-console';
-
-const LANGUAGES: Array<{ id: ProgrammingLanguage; label: string }> = [
-  { id: 'javascript', label: 'JavaScript (Node.js)' },
-  { id: 'python', label: 'Python' },
-  { id: 'java', label: 'Java' },
-];
+import { MonacoEditor } from '../../shared/monaco-editor/monaco-editor';
+import { FormatArgsPipe, FormatJsonPipe } from '../../shared/format-args/format-args.pipe';
+import { ConsoleView, ExecutionConsole, errorLines, fromRun, fromSubmit } from '../../shared/execution-console/execution-console';
+import { LANGUAGES } from '../../core/languages';
 
 function starterFor(question: QuestionDetail, language: ProgrammingLanguage): string {
   return question.starterCodes[language] ?? '';
@@ -21,87 +16,8 @@ function starterFor(question: QuestionDetail, language: ProgrammingLanguage): st
 @Component({
   selector: 'app-code-editor',
   imports: [RouterLink, MonacoEditor, ExecutionConsole, FormatArgsPipe, FormatJsonPipe],
-  template: `
-    <a [routerLink]="['/submissions', submissionId()]" class="back">← Volver al assessment</a>
-    @if (error()) {
-      <div class="alert alert-error">{{ error() }}</div>
-    }
-    @if (question(); as q) {
-      <div class="editor-layout">
-        <section class="card problem">
-          <div class="problem-header">
-            <h1>{{ q.title }}</h1>
-            <span class="badge">{{ q.points }} pts</span>
-          </div>
-          @if (assessment()) {
-            <p class="muted">Tiempo restante: <strong [class.danger]="remainingMs() < 5 * 60_000">{{ remaining() }}</strong></p>
-          }
-          <pre class="problem-description">{{ q.description }}</pre>
-          @if (q.testCases.length) {
-            <h3>Casos de ejemplo</h3>
-            <p class="muted small">
-              <strong>Ejecutar</strong> prueba tu código con los 2 primeros ejemplos y no guarda nada.
-              <strong>Enviar respuesta</strong> califica con todos los casos, incluidos los ocultos.
-            </p>
-            <table class="console-table">
-              <thead><tr><th>Entrada</th><th>Salida esperada</th></tr></thead>
-              <tbody>
-                @for (t of q.testCases; track t.id) {
-                  <tr><td><code>{{ t.inputValue | formatArgs }}</code></td><td><code>{{ t.expectedOutput | formatJson }}</code></td></tr>
-                }
-              </tbody>
-            </table>
-          }
-        </section>
-
-        <section class="workspace">
-          <div class="toolbar">
-            <label>
-              Lenguaje
-              <select [value]="language()" (change)="changeLanguage($any($event.target).value)">
-                @for (l of languages(); track l.id) {
-                  <option [value]="l.id">{{ l.label }}</option>
-                }
-              </select>
-            </label>
-            <span class="spacer"></span>
-            <button class="btn btn-ghost" (click)="reset()" [disabled]="busy()">Restablecer</button>
-            <button class="btn" (click)="run()" [disabled]="busy() || expired()">▶ Ejecutar</button>
-            <button class="btn btn-primary" (click)="submit()" [disabled]="busy() || expired()">Enviar respuesta</button>
-          </div>
-          <div class="editor-frame">
-            <app-monaco-editor
-              [value]="code()"
-              [language]="language()"
-              [markers]="markers()"
-              (valueChange)="setCode($event)"
-            />
-          </div>
-          @if (submitted(); as s) {
-            <div class="submit-summary" [class]="'submit-summary submit-' + summaryState()" role="status">
-              <div class="submit-summary-text">
-                <strong>
-                  @switch (summaryState()) {
-                    @case ('correct') { ✔ Respuesta correcta }
-                    @case ('partial') { ◐ Respuesta parcialmente correcta }
-                    @default { ✘ Respuesta incorrecta }
-                  }
-                </strong>
-                <span>
-                  Tu respuesta quedó guardada: {{ s.passed }} de {{ s.total }} casos exitosos ·
-                  {{ s.score }}/{{ s.points }} pts. Revisa el detalle en la consola; puedes corregir y volver a enviar.
-                </span>
-              </div>
-              <button class="btn btn-primary" (click)="backToQuestions()">Volver a las preguntas</button>
-            </div>
-          }
-          <app-execution-console [view]="result()" [running]="busy()" />
-        </section>
-      </div>
-    } @else if (!error()) {
-      <p class="muted">Cargando pregunta…</p>
-    }
-  `,
+  templateUrl: './code-editor.html',
+  styleUrl: './code-editor.css',
 })
 export class CodeEditorPage {
   readonly submissionId = input.required<string>();

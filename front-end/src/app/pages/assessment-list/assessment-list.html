@@ -1,0 +1,57 @@
+<h1>Assessments disponibles</h1>
+@if (!isStudent()) {
+  <div class="alert">Vista de candidato en modo lectura. Para crear assessments y preguntas ve al <a routerLink="/admin">panel del evaluador</a>.</div>
+}
+@if (error()) {
+  <div class="alert alert-error">{{ error() }}</div>
+}
+@if (loading()) {
+  <p class="muted">Cargando assessments…</p>
+} @else if (assessments().length === 0 && !error()) {
+  <p class="muted">No hay assessments registrados.</p>
+}
+<div class="grid">
+  @for (assessment of assessments(); track assessment.id) {
+    @let status = statusById().get(assessment.id) ?? {};
+    <article class="card assessment-card">
+      <div class="card-title-row">
+        <h2>{{ assessment.title }}</h2>
+        @if (isStudent()) {
+          @if (status.inProgress) {
+            <span class="badge badge-progress">En progreso</span>
+          } @else if (status.lastCompleted; as last) {
+            <span class="badge" [class]="approved(last) ? 'badge badge-correct' : 'badge badge-incorrect'">
+              {{ approved(last) ? 'Aprobado' : 'No aprobado' }}
+            </span>
+          }
+        }
+      </div>
+      <p class="description">{{ assessment.description }}</p>
+      <dl class="meta">
+        <div><dt>Duración</dt><dd>{{ assessment.durationMinutes }} min</dd></div>
+        <div><dt>Preguntas</dt><dd>{{ assessment.totalQuestions }}</dd></div>
+      </dl>
+
+      @if (isStudent()) {
+        @if (!status.inProgress && status.lastCompleted; as last) {
+          <p class="last-result">
+            Último resultado: <strong>{{ last.finalScore ?? 0 }}/{{ last.totalPossiblePoints }} pts ({{ percent(last) }}%)</strong>
+            <span class="muted">· {{ last.completedAt | date: 'dd/MM/yyyy HH:mm' }}</span>
+          </p>
+        }
+        <div class="card-actions">
+          @if (status.inProgress; as current) {
+            <a class="btn btn-primary" [routerLink]="['/submissions', current.id]">Continuar</a>
+          } @else if (status.lastCompleted; as last) {
+            <!-- Reintentar solo se ofrece desde el reporte, con confirmación. -->
+            <a class="btn btn-primary" [routerLink]="['/submissions', last.id, 'results']">Ver resultado</a>
+          } @else {
+            <button class="btn btn-primary" [disabled]="starting() === assessment.id" (click)="start(assessment)">
+              {{ starting() === assessment.id ? 'Abriendo…' : 'Iniciar' }}
+            </button>
+          }
+        </div>
+      }
+    </article>
+  }
+</div>
