@@ -30,7 +30,7 @@ Entrada: [3, 5, 1, 8, 2]
 Salida: 8',
 10,
 'function findMax(arr) {
-  // Tu código aquí
+  // SOLUTION
 }');
 
 -- Pregunta 2: Invertir cadena
@@ -43,7 +43,7 @@ Entrada: "hola"
 Salida: "aloh"',
 10,
 'function reverseString(str) {
-  // Tu código aquí
+  // SOLUTION
 }');
 
 -- Pregunta 3: Sumar números pares
@@ -56,7 +56,7 @@ Entrada: [1, 2, 3, 4, 5, 6]
 Salida: 12 (2+4+6)',
 15,
 'function sumEvenNumbers(arr) {
-  // Tu código aquí
+  // SOLUTION
 }');
 
 -- ==============================================================================
@@ -65,27 +65,27 @@ Salida: 12 (2+4+6)',
 
 -- Casos de prueba para pregunta 1 (Encontrar máximo)
 INSERT INTO test_cases (question_id, input_value, expected_output, is_visible) VALUES
-(1, '[3, 5, 1, 8, 2]', '8', true),
-(1, '[10, 20, 5]', '20', true),
-(1, '[-5, -2, -10]', '-2', true),
-(1, '[100]', '100', true),
-(1, '[7, 7, 7, 7]', '7', false);
+(1, '[[3, 5, 1, 8, 2]]', '8', true),
+(1, '[[10, 20, 5]]', '20', true),
+(1, '[[-5, -2, -10]]', '-2', true),
+(1, '[[100]]', '100', true),
+(1, '[[7, 7, 7, 7]]', '7', false);
 
 -- Casos de prueba para pregunta 2 (Invertir cadena)
 INSERT INTO test_cases (question_id, input_value, expected_output, is_visible) VALUES
-(2, '"hola"', '"aloh"', true),
-(2, '"abc"', '"cba"', true),
-(2, '"a"', '"a"', true),
-(2, '""', '""', true),
-(2, '"racecar"', '"racecar"', false);
+(2, '["hola"]', '"aloh"', true),
+(2, '["abc"]', '"cba"', true),
+(2, '["a"]', '"a"', true),
+(2, '[""]', '""', true),
+(2, '["racecar"]', '"racecar"', false);
 
 -- Casos de prueba para pregunta 3 (Sumar números pares)
 INSERT INTO test_cases (question_id, input_value, expected_output, is_visible) VALUES
-(3, '[1, 2, 3, 4, 5, 6]', '12', true),
-(3, '[2, 4, 6, 8]', '20', true),
-(3, '[1, 3, 5]', '0', true),
-(3, '[]', '0', true),
-(3, '[0, 2, 4, 6, 8, 10]', '30', false);
+(3, '[[1, 2, 3, 4, 5, 6]]', '12', true),
+(3, '[[2, 4, 6, 8]]', '20', true),
+(3, '[[1, 3, 5]]', '0', true),
+(3, '[[]]', '0', true),
+(3, '[[0, 2, 4, 6, 8, 10]]', '30', false);
 
 -- ==============================================================================
 -- INSERTAR ASSESSMENTS
@@ -216,52 +216,52 @@ VALUES
 INSERT INTO test_case_results
 (question_submission_id, test_case_id, input_value, expected_output, actual_output, is_passed)
 VALUES
-(1, 1, '[3, 5, 1, 8, 2]', '8', '8', true),
-(1, 2, '[10, 20, 5]', '20', '20', true),
-(1, 3, '[-5, -2, -10]', '-2', '-2', true),
-(1, 4, '[100]', '100', '100', true);
+(1, 1, '[[3, 5, 1, 8, 2]]', '8', '8', true),
+(1, 2, '[[10, 20, 5]]', '20', '20', true),
+(1, 3, '[[-5, -2, -10]]', '-2', '-2', true),
+(1, 4, '[[100]]', '100', '100', true);
 
 -- Resultados para pregunta 2 de Carlos (incorrectos)
 INSERT INTO test_case_results
 (question_submission_id, test_case_id, input_value, expected_output, actual_output, is_passed, error_message)
 VALUES
-(2, 5, '"hola"', '"aloh"', NULL, false, 'TypeError: split is not a function'),
-(2, 6, '"abc"', '"cba"', NULL, false, 'TypeError: split is not a function'),
-(2, 7, '"a"', '"a"', NULL, false, 'TypeError: split is not a function'),
-(2, 8, '""', '""', NULL, false, 'TypeError: split is not a function');
+(2, 5, '["hola"]', '"aloh"', NULL, false, 'TypeError: split is not a function'),
+(2, 6, '["abc"]', '"cba"', NULL, false, 'TypeError: split is not a function'),
+(2, 7, '["a"]', '"a"', NULL, false, 'TypeError: split is not a function'),
+(2, 8, '[""]', '""', NULL, false, 'TypeError: split is not a function');
 
 -- Resultados para pregunta 3 de Carlos
 INSERT INTO test_case_results
 (question_submission_id, test_case_id, input_value, expected_output, actual_output, is_passed)
 VALUES
-(3, 9, '[1, 2, 3, 4, 5, 6]', '12', '12', true),
-(3, 10, '[2, 4, 6, 8]', '20', '20', true),
-(3, 11, '[1, 3, 5]', '0', '0', true),
-(3, 12, '[]', '0', '0', true);
+(3, 9, '[[1, 2, 3, 4, 5, 6]]', '12', '12', true),
+(3, 10, '[[2, 4, 6, 8]]', '20', '20', true),
+(3, 11, '[[1, 3, 5]]', '0', '0', true),
+(3, 12, '[[]]', '0', '0', true);
 
 -- Resultados para pregunta 1 de Ana
 INSERT INTO test_case_results
 (question_submission_id, test_case_id, input_value, expected_output, actual_output, is_passed)
 VALUES
-(4, 1, '[3, 5, 1, 8, 2]', '8', '8', true),
-(4, 2, '[10, 20, 5]', '20', '20', true),
-(4, 3, '[-5, -2, -10]', '-2', '-2', true),
-(4, 4, '[100]', '100', '100', true);
+(4, 1, '[[3, 5, 1, 8, 2]]', '8', '8', true),
+(4, 2, '[[10, 20, 5]]', '20', '20', true),
+(4, 3, '[[-5, -2, -10]]', '-2', '-2', true),
+(4, 4, '[[100]]', '100', '100', true);
 
 -- Resultados para pregunta 2 de Ana
 INSERT INTO test_case_results
 (question_submission_id, test_case_id, input_value, expected_output, actual_output, is_passed)
 VALUES
-(5, 5, '"hola"', '"aloh"', '"aloh"', true),
-(5, 6, '"abc"', '"cba"', '"cba"', true),
-(5, 7, '"a"', '"a"', '"a"', true),
-(5, 8, '""', '""', '""', true);
+(5, 5, '["hola"]', '"aloh"', '"aloh"', true),
+(5, 6, '["abc"]', '"cba"', '"cba"', true),
+(5, 7, '["a"]', '"a"', '"a"', true),
+(5, 8, '[""]', '""', '""', true);
 
 -- Resultados para pregunta 3 de Ana
 INSERT INTO test_case_results
 (question_submission_id, test_case_id, input_value, expected_output, actual_output, is_passed)
 VALUES
-(6, 9, '[1, 2, 3, 4, 5, 6]', '12', '12', true),
-(6, 10, '[2, 4, 6, 8]', '20', '20', true),
-(6, 11, '[1, 3, 5]', '0', '0', true),
-(6, 12, '[]', '0', '0', true);
+(6, 9, '[[1, 2, 3, 4, 5, 6]]', '12', '12', true),
+(6, 10, '[[2, 4, 6, 8]]', '20', '20', true),
+(6, 11, '[[1, 3, 5]]', '0', '0', true),
+(6, 12, '[[]]', '0', '0', true);
