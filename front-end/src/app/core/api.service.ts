@@ -1,0 +1,85 @@
+import { Injectable, inject } from '@angular/core';
+import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import type {
+  Assessment,
+  AssessmentDetail,
+  AssessmentSubmission,
+  CreateAssessmentInput,
+  CreateQuestionInput,
+  Question,
+  ExecutionResult,
+  ProgrammingLanguage,
+  QuestionDetail,
+  SolutionResult,
+  SubmissionDetail,
+} from './models';
+import type { SessionUser, UserRole } from './session.service';
+
+// Rutas relativas: en desarrollo las resuelve el proxy de `ng serve`,
+// y en el contenedor las reenvía nginx al servicio `backend-api`.
+const API = '/api';
+
+@Injectable({ providedIn: 'root' })
+export class ApiService {
+  private readonly http = inject(HttpClient);
+
+  login(username: string, password: string, role: UserRole) {
+    return this.http.post<SessionUser>(`${API}/auth/login`, { username, password, role });
+  }
+
+  listAssessments() {
+    return this.http.get<Assessment[]>(`${API}/assessments`);
+  }
+
+  getAssessment(id: number) {
+    return this.http.get<AssessmentDetail>(`${API}/assessments/${id}`);
+  }
+
+  createAssessment(input: CreateAssessmentInput) {
+    return this.http.post<AssessmentDetail>(`${API}/assessments`, input);
+  }
+
+  listQuestions() {
+    return this.http.get<Question[]>(`${API}/questions`);
+  }
+
+  createQuestion(input: CreateQuestionInput) {
+    return this.http.post<QuestionDetail>(`${API}/questions`, input);
+  }
+
+  getQuestion(id: number) {
+    return this.http.get<QuestionDetail>(`${API}/questions/${id}`);
+  }
+
+  runQuestion(id: number, code: string, language: ProgrammingLanguage) {
+    return this.http.post<ExecutionResult>(`${API}/questions/${id}/run`, { code, language });
+  }
+
+  startAssessment(studentId: number, assessmentId: number) {
+    return this.http.post<AssessmentSubmission>(`${API}/submissions`, { studentId, assessmentId });
+  }
+
+  getSubmission(id: number) {
+    return this.http.get<SubmissionDetail>(`${API}/submissions/${id}`);
+  }
+
+  submitSolution(submissionId: number, questionId: number, code: string, language: ProgrammingLanguage) {
+    return this.http.post<SolutionResult>(`${API}/submissions/${submissionId}/questions`, {
+      questionId,
+      code,
+      language,
+    });
+  }
+
+  completeAssessment(submissionId: number) {
+    return this.http.post<AssessmentSubmission>(`${API}/submissions/${submissionId}/complete`, {});
+  }
+}
+
+export function errorMessage(error: unknown): string {
+  if (error instanceof HttpErrorResponse) {
+    if (error.status === 0) return 'No se pudo conectar con el backend.';
+    return error.error?.error?.message ?? error.message;
+  }
+  return error instanceof Error ? error.message : String(error);
+}

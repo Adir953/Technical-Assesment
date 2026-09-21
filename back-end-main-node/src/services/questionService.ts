@@ -1,9 +1,19 @@
 import { db } from '../db';
-import { questionRepository, testCaseRepository } from '../repositories';
+import {
+  questionRepository,
+  questionStarterCodeRepository,
+  testCaseRepository,
+} from '../repositories';
 import { runCode } from '../clients/runnerClient';
 import { notFound, badRequest } from '../middleware/errorHandler';
 import { requireRole } from './userService';
-import type { Question, QuestionDetail, CreateQuestionInput } from '../types/question';
+import type {
+  Question,
+  QuestionDetail,
+  CreateQuestionInput,
+  QuestionStarterCode,
+  StarterCodes,
+} from '../types/question';
 import type { ProgrammingLanguage } from '../types/submission';
 
 export { type Question, type QuestionDetail, type CreateQuestionInput };
@@ -17,13 +27,20 @@ export async function getQuestion(id: number): Promise<QuestionDetail> {
   if (!question) {
     throw notFound(`Question ${id} not found`);
   }
-  const visibleCases = await testCaseRepository.findVisibleByQuestionId(id);
-  return { ...question, testCases: visibleCases };
+  const [starterCodes, visibleCases] = await Promise.all([
+    questionStarterCodeRepository.findByQuestionId(id),
+    testCaseRepository.findVisibleByQuestionId(id),
+  ]);
+  return { ...question, starterCodes: toStarterCodes(starterCodes), testCases: visibleCases };
 }
 
 export async function createQuestion(input: CreateQuestionInput): Promise<QuestionDetail> {
   if (input.testCases.length === 0) {
     throw badRequest('A question needs at least one test case');
+  }
+  const languages = Object.keys(input.starterCodes) as ProgrammingLanguage[];
+  if (languages.length === 0) {
+    throw badRequest('A question needs starter code for at least one language');
   }
 
   await requireRole(input.createdBy, 'admin');
@@ -35,8 +52,16 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Questi
         title: input.title,
         description: input.description,
         points: input.points,
-        starterCode: input.starterCode ?? null,
       },
+      tx
+    );
+
+    const starterCodes = await questionStarterCodeRepository.createMany(
+      languages.map((language) => ({
+        questionId: question.id,
+        programmingLanguage: language,
+        starterCode: input.starterCodes[language]!,
+      })),
       tx
     );
 
@@ -50,16 +75,16 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Questi
       tx
     );
 
-    return { ...question, testCases: cases };
+    return { ...question, starterCodes: toStarterCodes(starterCodes), testCases: cases };
   });
 }
 
-export async function runQuestion(
-  id: number,
-  code: string,
-  language: ProgrammingLanguage
-) {
+export async function runQuestion(id: number, code: string, language: ProgrammingLanguage) {
   const question = await getQuestion(id);
+  const starterCode = question.starterCodes[language];
+  if (!starterCode) {
+    throw badRequest(`Language ${language} is not allowed for question ${id}`);
+  }
   if (question.testCases.length === 0) {
     throw badRequest(`Question ${id} has no visible test cases`);
   }
@@ -68,11 +93,29 @@ export async function runQuestion(
     questionId: question.id,
     language,
     code,
-    templateCode: question.starterCode ?? '',
+    templateCode: starterCode,
     testCases: question.testCases.map((testCase) => ({
       input: testCase.inputValue,
       expectedOutput: testCase.expectedOutput,
       isVisible: true,
     })),
   });
+}
+
+export async function requireStarterCode(
+  questionId: number,
+  language: ProgrammingLanguage
+): Promise<string> {
+  const starterCode = await questionStarterCodeRepository.findByQuestionAndLanguage(
+    questionId,
+    language
+  );
+  if (!starterCode) {
+    throw badRequest(`Language ${language} is not allowed for question ${questionId}`);
+  }
+  return starterCode.starterCode;
+}
+
+function toStarterCodes(rows: QuestionStarterCode[]): StarterCodes {
+  return Object.fromEntries(rows.map((row) => [row.programmingLanguage, row.starterCode]));
 }

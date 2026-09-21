@@ -16,48 +16,112 @@ INSERT INTO users (name, email, password_hash, role) VALUES
 ('Luis Rodríguez', 'luis@example.com', '$2a$10$hashedpassword5', 'student'),
 ('Sofia Chen', 'sofia@example.com', '$2a$10$hashedpassword6', 'student');
 
+-- Cuentas de acceso a la plataforma (credenciales de demostración, no son secretos):
+--   admin / admin            → evaluador
+--   estudiante / estudiante  → estudiante
+-- Formato del hash: scrypt$<salt hex>$<hash hex> (crypto.scryptSync, keylen 64).
+INSERT INTO users (name, username, email, password_hash, role) VALUES
+('Administrador', 'admin', 'admin@example.com',
+ 'scrypt$526e9af2df4904930ce4328cfa083c2c$feb9229b1ab8d60f6e1cfba7cb4c91ff97ef80c676281a5f318f2385df0a402bbfcbd8d74e764d4abdf47eee2361b016e1cf8370a62fcc8fccd81e92d5daefca',
+ 'admin'),
+('Estudiante Demo', 'estudiante', 'estudiante@example.com',
+ 'scrypt$695adc8b29ce4b38e7b949c1b678ed33$f3d0548c19a53aa7e8c0dd436dbf3b8d064f18e838260d4bba254f6b77c3e8b836a049a404230be6c06dfcd54b282c812cb672dc64f2c61a0626674d0db72c67',
+ 'student');
+
 -- ==============================================================================
 -- INSERTAR PREGUNTAS
 -- ==============================================================================
 
 -- Pregunta 1: Encontrar número máximo
-INSERT INTO questions (created_by, title, description, points, starter_code) VALUES
+INSERT INTO questions (created_by, title, description, points) VALUES
 (1, 'Encuentra el número máximo',
 'Dado un arreglo de números, retorna el valor máximo del arreglo.
 
 Ejemplo:
 Entrada: [3, 5, 1, 8, 2]
 Salida: 8',
-10,
-'function findMax(arr) {
-  // SOLUTION
-}');
+10);
 
 -- Pregunta 2: Invertir cadena
-INSERT INTO questions (created_by, title, description, points, starter_code) VALUES
+INSERT INTO questions (created_by, title, description, points) VALUES
 (1, 'Invierte una cadena',
 'Dado un string, retorna el string invertido.
 
 Ejemplo:
 Entrada: "hola"
 Salida: "aloh"',
-10,
-'function reverseString(str) {
-  // SOLUTION
-}');
+10);
 
 -- Pregunta 3: Sumar números pares
-INSERT INTO questions (created_by, title, description, points, starter_code) VALUES
+INSERT INTO questions (created_by, title, description, points) VALUES
 (2, 'Suma números pares',
 'Dado un arreglo de números, retorna la suma de todos los números pares.
 
 Ejemplo:
 Entrada: [1, 2, 3, 4, 5, 6]
 Salida: 12 (2+4+6)',
-15,
+15);
+
+-- ==============================================================================
+-- INSERTAR CÓDIGO INICIAL POR LENGUAJE
+-- El runner llama a la primera función (o método público en Java) del código inicial.
+-- ==============================================================================
+
+INSERT INTO question_starter_codes (question_id, programming_language, starter_code) VALUES
+(1, 'javascript',
+'function findMax(arr) {
+  // Escribe tu solución aquí
+}
+'),
+(1, 'python',
+'def find_max(arr):
+    # Escribe tu solución aquí
+    pass
+'),
+(1, 'java',
+'public class Solution {
+    public int findMax(int[] arr) {
+        // Escribe tu solución aquí
+        return 0;
+    }
+}
+'),
+(2, 'javascript',
+'function reverseString(str) {
+  // Escribe tu solución aquí
+}
+'),
+(2, 'python',
+'def reverse_string(s):
+    # Escribe tu solución aquí
+    pass
+'),
+(2, 'java',
+'public class Solution {
+    public String reverseString(String str) {
+        // Escribe tu solución aquí
+        return "";
+    }
+}
+'),
+(3, 'javascript',
 'function sumEvenNumbers(arr) {
-  // SOLUTION
-}');
+  // Escribe tu solución aquí
+}
+'),
+(3, 'python',
+'def sum_even_numbers(arr):
+    # Escribe tu solución aquí
+    pass
+'),
+(3, 'java',
+'public class Solution {
+    public int sumEvenNumbers(int[] arr) {
+        // Escribe tu solución aquí
+        return 0;
+    }
+}
+');
 
 -- ==============================================================================
 -- INSERTAR CASOS DE PRUEBA

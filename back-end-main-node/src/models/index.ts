@@ -1,6 +1,7 @@
 export * from './users';
 export * from './assessments';
 export * from './questions';
+export * from './questionStarterCodes';
 export * from './assessmentQuestions';
 export * from './testCases';
 export * from './assessmentSubmissions';

@@ -9,6 +9,5 @@ export const questions = pgTable('questions', {
   title: varchar('title', { length: 255 }).notNull(),
   description: text('description').notNull(),
   points: integer('points').notNull(),
-  starterCode: text('starter_code'),
   createdAt: timestamp('created_at').defaultNow(),
 });

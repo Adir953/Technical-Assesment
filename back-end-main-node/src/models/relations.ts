@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import { users } from './users';
 import { assessments } from './assessments';
 import { questions } from './questions';
+import { questionStarterCodes } from './questionStarterCodes';
 import { assessmentQuestions } from './assessmentQuestions';
 import { testCases } from './testCases';
 import { assessmentSubmissions } from './assessmentSubmissions';
@@ -29,8 +30,16 @@ export const questionsRelations = relations(questions, ({ one, many }) => ({
     references: [users.id],
   }),
   assessmentQuestions: many(assessmentQuestions),
+  starterCodes: many(questionStarterCodes),
   testCases: many(testCases),
   submissions: many(questionSubmissions),
+}));
+
+export const questionStarterCodesRelations = relations(questionStarterCodes, ({ one }) => ({
+  question: one(questions, {
+    fields: [questionStarterCodes.questionId],
+    references: [questions.id],
+  }),
 }));
 
 export const assessmentQuestionsRelations = relations(assessmentQuestions, ({ one }) => ({

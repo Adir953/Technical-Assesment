@@ -11,6 +11,7 @@ import {
 import { runCode } from '../clients/runnerClient';
 import { badRequest, conflict, notFound } from '../middleware/errorHandler';
 import { requireRole } from './userService';
+import { requireStarterCode } from './questionService';
 import type {
   AssessmentSubmission,
   QuestionSubmission,
@@ -80,6 +81,8 @@ export async function submitSolution(input: SubmitSolutionInput): Promise<Soluti
     throw notFound(`Question ${input.questionId} not found`);
   }
 
+  const starterCode = await requireStarterCode(question.id, input.language);
+
   const cases = await testCaseRepository.findByQuestionId(input.questionId);
   if (cases.length === 0) {
     throw badRequest(`Question ${input.questionId} has no test cases configured`);
@@ -89,7 +92,7 @@ export async function submitSolution(input: SubmitSolutionInput): Promise<Soluti
     questionId: question.id,
     language: input.language,
     code: input.code,
-    templateCode: question.starterCode ?? '',
+    templateCode: starterCode,
     testCases: cases.map((testCase) => ({
       input: testCase.inputValue,
       expectedOutput: testCase.expectedOutput,

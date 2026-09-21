@@ -8,6 +8,8 @@
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
+    -- Nombre de usuario para iniciar sesión (NULL = el usuario no puede iniciar sesión)
+    username VARCHAR(50) UNIQUE,
     email VARCHAR(255) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'student',
@@ -38,8 +40,20 @@ CREATE TABLE questions (
     title VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
     points INTEGER NOT NULL,
-    starter_code TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ==============================================================================
+-- TABLA: question_starter_codes
+-- Código inicial de cada pregunta por lenguaje. Los lenguajes registrados aquí
+-- son los lenguajes permitidos para resolver la pregunta.
+-- ==============================================================================
+CREATE TABLE question_starter_codes (
+    id SERIAL PRIMARY KEY,
+    question_id INTEGER NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+    programming_language VARCHAR(50) NOT NULL,
+    starter_code TEXT NOT NULL,
+    UNIQUE(question_id, programming_language)
 );
 
 -- ==============================================================================

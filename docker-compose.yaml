@@ -85,6 +85,22 @@ services:
       start_period: 20s
 
   # ==============================================================================
+  # Frontend (Angular + nginx). nginx reenvía /api/* a backend-api:3000
+  # ==============================================================================
+  frontend:
+    build:
+      context: ./front-end
+      dockerfile: Dockerfile
+    container_name: frontend
+    ports:
+      - "${FRONTEND_PORT:-4200}:80"
+    depends_on:
+      - backend-api
+    networks:
+      - tap-network
+    restart: unless-stopped
+
+  # ==============================================================================
   # Python Runner (Ejecutor de código Python)
   # ==============================================================================
   python-runner:

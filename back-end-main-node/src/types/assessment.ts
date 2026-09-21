@@ -19,7 +19,6 @@ export interface OrderedQuestion {
   title: string;
   description: string;
   points: number;
-  starterCode: string | null;
   createdAt: Date | null;
   questionOrder: number;
 }

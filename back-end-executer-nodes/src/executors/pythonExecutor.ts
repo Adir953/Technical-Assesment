@@ -35,13 +35,10 @@ export async function executePython(
   const scriptPath = path.join(tmpDir, 'solution.py');
 
   try {
-    // Merge user code with template
-    // Template should have a # SOLUTION placeholder
-    let fullCode = templateCode.includes('# SOLUTION')
-      ? templateCode.replace('# SOLUTION', userCode)
-      : `${templateCode}\n${userCode}`;
+    // The editor starts from the template, so the user submits the whole program;
+    // the template only tells which function the harness must call.
+    let fullCode = userCode;
 
-    // Extract function name from template (first function definition)
     const funcMatch = templateCode.match(/def\s+(\w+)\s*\(/);
     const functionName = funcMatch ? funcMatch[1] : null;
 

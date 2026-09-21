@@ -1,11 +1,18 @@
-import type { questions, testCases } from '../models';
+import type { questions, questionStarterCodes, testCases } from '../models';
+import type { ProgrammingLanguage } from './submission';
 
 export type Question = typeof questions.$inferSelect;
 export type NewQuestion = typeof questions.$inferInsert;
 export type TestCase = typeof testCases.$inferSelect;
 export type NewTestCase = typeof testCases.$inferInsert;
+export type QuestionStarterCode = typeof questionStarterCodes.$inferSelect;
+export type NewQuestionStarterCode = typeof questionStarterCodes.$inferInsert;
+
+// Las claves presentes son los lenguajes permitidos para la pregunta.
+export type StarterCodes = Partial<Record<ProgrammingLanguage, string>>;
 
 export interface QuestionDetail extends Question {
+  starterCodes: StarterCodes;
   testCases: TestCase[];
 }
 
@@ -14,6 +21,6 @@ export interface CreateQuestionInput {
   title: string;
   description: string;
   points: number;
-  starterCode?: string;
+  starterCodes: StarterCodes;
   testCases: Array<{ inputValue: string; expectedOutput: string; isVisible?: boolean }>;
 }

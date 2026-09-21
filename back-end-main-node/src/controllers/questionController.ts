@@ -1,8 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import * as questionService from '../services/questionService';
-import { badRequest } from '../middleware/errorHandler';
-import {
-  optionalString,
+import { badRequest } from '../middleware/errorHandler';import {
   parseId,
   parseLanguage,
   requireString,
@@ -29,10 +27,13 @@ export async function getQuestion(req: Request, res: Response, next: NextFunctio
 
 export async function createQuestion(req: Request, res: Response, next: NextFunction) {
   try {
-    const { createdBy, title, description, points, starterCode, testCases } = req.body;
+    const { createdBy, title, description, points, starterCodes, testCases } = req.body;
 
     if (!Array.isArray(testCases)) {
       throw badRequest('testCases must be an array');
+    }
+    if (typeof starterCodes !== 'object' || starterCodes === null || Array.isArray(starterCodes)) {
+      throw badRequest('starterCodes must be an object keyed by language');
     }
 
     const question = await questionService.createQuestion({
@@ -40,7 +41,12 @@ export async function createQuestion(req: Request, res: Response, next: NextFunc
       title: requireString(title, 'title'),
       description: requireString(description, 'description'),
       points: parseId(points, 'points'),
-      starterCode: optionalString(starterCode, 'starterCode'),
+      starterCodes: Object.fromEntries(
+        Object.entries(starterCodes).map(([language, code]) => [
+          parseLanguage(language),
+          requireString(code, `starterCodes.${language}`),
+        ])
+      ),
       testCases: testCases.map((testCase, index) => ({
         inputValue: requireString(testCase?.inputValue, `testCases[${index}].inputValue`),
         expectedOutput: requireString(

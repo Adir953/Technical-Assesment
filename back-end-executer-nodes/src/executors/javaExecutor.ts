@@ -25,6 +25,9 @@ interface ExecutionResult {
   totalTests?: number;
 }
 
+// Faster JVM startup: every test case starts a new JVM within the same time limit.
+const JVM_FLAGS = ['-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1'];
+
 export async function executeJava(
   userCode: string,
   templateCode: string,
@@ -32,70 +35,28 @@ export async function executeJava(
   timeoutMs: number = 5000
 ): Promise<ExecutionResult> {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'java-exec-'));
-  const className = 'Solution';
-  const javaFile = path.join(tmpDir, `${className}.java`);
 
   try {
-    // Merge user code with template
-    let fullCode = templateCode.includes('// SOLUTION')
-      ? templateCode.replace('// SOLUTION', userCode)
-      : `${templateCode}\n${userCode}`;
-
-    // Ensure class name is correct
-    let fixedCode = fullCode.replace(/public class \w+/, `public class ${className}`);
-
-    // Extract method name from template (first public method)
-    const methodMatch = templateCode.match(/public\s+\w+\s+(\w+)\s*\(/);
-    const methodName = methodMatch ? methodMatch[1] : null;
-
-    // Add auto-generated main if method found
-    if (methodName && !fixedCode.includes('public static void main')) {
-      fixedCode += `\n\n    public static void main(String[] args) throws Exception {
-        java.util.Scanner scanner = new java.util.Scanner(System.in);
-        if (scanner.hasNextLine()) {
-            String line = scanner.nextLine();
-            try {
-                java.util.List<Object> argsList = new java.util.ArrayList<>();
-                String jsonLine = line.trim();
-                if (jsonLine.startsWith("[")) {
-                    jsonLine = jsonLine.substring(1, jsonLine.length() - 1);
-                    for (String arg : jsonLine.split(",")) {
-                        arg = arg.trim();
-                        if (arg.matches("-?\\\\d+(\\\\.\\\\d+)?")) {
-                            if (arg.contains(".")) {
-                                argsList.add(Double.parseDouble(arg));
-                            } else {
-                                argsList.add(Integer.parseInt(arg));
-                            }
-                        } else {
-                            argsList.add(arg.replaceAll("^\\"|\\"$", ""));
-                        }
-                    }
-                }
-
-                ${className} solution = new ${className}();
-                Object result = solution.${methodName}(argsList.toArray());
-                System.out.println(result);
-            } catch (Exception e) {
-                System.err.println("Error: " + e.getMessage());
-                System.exit(1);
-            }
-        }
-    }`;
+    const signature = parseSignature(templateCode);
+    if (!signature) {
+      return { status: 'COMPILE_ERROR', error: 'No public method found in the starter code' };
     }
 
-    fs.writeFileSync(javaFile, fixedCode);
+    // The editor starts from the template, so the user submits the whole class.
+    // Imports go on the first line so compiler line numbers still match the editor.
+    const solutionCode =
+      'import java.util.*; import java.util.stream.*; ' +
+      userCode.replace(/(public\s+)?class\s+\w+/, 'public class Solution');
 
-    // Compile
-    const compileResult = await compileJava(javaFile, timeoutMs);
+    fs.writeFileSync(path.join(tmpDir, 'Solution.java'), solutionCode);
+    fs.writeFileSync(path.join(tmpDir, 'Main.java'), buildMain(signature, testCases));
+
+    const compileResult = await compileJava(tmpDir, timeoutMs);
     if (compileResult.status !== 'SUCCESS') {
       return compileResult;
     }
 
-    // Execute test cases
-    const testResults = await runTestCases(tmpDir, className, testCases, timeoutMs);
-
-    return testResults;
+    return await runTestCases(tmpDir, testCases, timeoutMs);
   } catch (error) {
     return {
       status: 'RUNTIME_ERROR',
@@ -110,9 +71,121 @@ export async function executeJava(
   }
 }
 
-async function compileJava(javaFile: string, timeoutMs: number): Promise<ExecutionResult> {
+interface Signature {
+  name: string;
+  paramTypes: string[];
+}
+
+// e.g. "public int findMax(int[] arr)" -> { name: 'findMax', paramTypes: ['int[]'] }
+function parseSignature(code: string): Signature | null {
+  const match = code.match(/public\s+(?:static\s+)?[\w<>\[\],\s]+?\s+(\w+)\s*\(([^)]*)\)/);
+  if (!match) return null;
+  const params = match[2].trim() ? splitTopLevel(match[2]) : [];
+  return { name: match[1], paramTypes: params.map((p) => p.trim().replace(/\s+\w+$/, '')) };
+}
+
+function splitTopLevel(params: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let current = '';
+  for (const ch of params) {
+    if (ch === '<') depth++;
+    if (ch === '>') depth--;
+    if (ch === ',' && depth === 0) {
+      parts.push(current);
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  return [...parts, current];
+}
+
+// Turns a parsed JSON value into a Java literal of the parameter type.
+function toJavaLiteral(value: unknown, type: string): string {
+  if (value === null) return 'null';
+  if (type.endsWith('[]')) {
+    const items = (value as unknown[]).map((v) => toJavaLiteral(v, type.slice(0, -2)));
+    return `new ${type}{${items.join(', ')}}`;
+  }
+  const list = type.match(/^(?:List|ArrayList|Collection)<(.+)>$/);
+  if (list) {
+    const items = (value as unknown[]).map((v) => toJavaLiteral(v, list[1].trim()));
+    return `new ArrayList<>(List.of(${items.join(', ')}))`;
+  }
+  switch (type) {
+    case 'String':
+      return JSON.stringify(value);
+    case 'char':
+    case 'Character':
+      return `'${JSON.stringify(value).slice(1, -1).replace(/'/g, "\\'")}'`;
+    case 'long':
+    case 'Long':
+      return `${value}L`;
+    case 'double':
+    case 'Double':
+      return `${value}d`;
+    case 'float':
+    case 'Float':
+      return `${value}f`;
+    default:
+      return String(value);
+  }
+}
+
+// Main receives the test case index as argument, calls the method with that case's
+// arguments already written as Java literals, and prints the result as compact JSON.
+function buildMain(signature: Signature, testCases: TestCase[]): string {
+  const cases = testCases.map((testCase, index) => {
+    const parsed = JSON.parse(testCase.input || '[]');
+    const args = Array.isArray(parsed) ? parsed : [parsed];
+    const literals = args.map((arg, i) => toJavaLiteral(arg, signature.paramTypes[i] ?? 'Object'));
+    return `            case ${index} -> solution.${signature.name}(${literals.join(', ')});`;
+  });
+
+  return `import java.util.*;
+import java.lang.reflect.Array;
+
+public class Main {
+    public static void main(String[] args) {
+        Solution solution = new Solution();
+        Object result = switch (Integer.parseInt(args[0])) {
+${cases.join('\n')}
+            default -> throw new IllegalArgumentException("Unknown test case");
+        };
+        System.out.println(toJson(result));
+    }
+
+    static String toJson(Object value) {
+        if (value == null) return "null";
+        if (value instanceof String || value instanceof Character) {
+            return "\\"" + value.toString().replace("\\\\", "\\\\\\\\").replace("\\"", "\\\\\\"").replace("\\n", "\\\\n") + "\\"";
+        }
+        if (value instanceof Double d && d == Math.rint(d)) return String.valueOf(d.longValue());
+        if (value.getClass().isArray()) {
+            StringJoiner json = new StringJoiner(",", "[", "]");
+            for (int i = 0; i < Array.getLength(value); i++) json.add(toJson(Array.get(value, i)));
+            return json.toString();
+        }
+        if (value instanceof Collection<?> items) {
+            StringJoiner json = new StringJoiner(",", "[", "]");
+            for (Object item : items) json.add(toJson(item));
+            return json.toString();
+        }
+        return String.valueOf(value);
+    }
+}
+`;
+}
+
+async function compileJava(tmpDir: string, timeoutMs: number): Promise<ExecutionResult> {
   return new Promise((resolve) => {
-    const process = spawn('javac', [javaFile]);
+    const process = spawn('javac', [
+      '-d',
+      tmpDir,
+      path.join(tmpDir, 'Solution.java'),
+      path.join(tmpDir, 'Main.java'),
+    ]);
 
     let stderr = '';
     let timedOut = false;
@@ -129,35 +202,27 @@ async function compileJava(javaFile: string, timeoutMs: number): Promise<Executi
     process.on('close', (code) => {
       clearTimeout(timeout);
       if (timedOut) {
-        resolve({
-          status: 'TIME_LIMIT_EXCEEDED',
-          error: 'Compilation time exceeded',
-        });
+        resolve({ status: 'TIME_LIMIT_EXCEEDED', error: 'Compilation time exceeded' });
       } else if (code !== 0) {
+        // Hide the temp directory so errors read "Solution.java:3: error ...".
         resolve({
           status: 'COMPILE_ERROR',
-          error: stderr || 'Compilation error',
+          error: stderr.split(`${tmpDir}${path.sep}`).join('') || 'Compilation error',
         });
       } else {
-        resolve({
-          status: 'SUCCESS',
-        });
+        resolve({ status: 'SUCCESS' });
       }
     });
 
     process.on('error', (err) => {
       clearTimeout(timeout);
-      resolve({
-        status: 'COMPILE_ERROR',
-        error: err.message,
-      });
+      resolve({ status: 'COMPILE_ERROR', error: err.message });
     });
   });
 }
 
 async function runTestCases(
   tmpDir: string,
-  className: string,
   testCases: TestCase[],
   timeoutMs: number
 ): Promise<ExecutionResult> {
@@ -167,7 +232,7 @@ async function runTestCases(
 
   for (let i = 0; i < testCases.length; i++) {
     const testCase = testCases[i];
-    const result = await runSingleTest(tmpDir, className, testCase, timeoutMs);
+    const result = await runSingleTest(tmpDir, i, testCase, timeoutMs);
 
     testResults.push({
       testCaseIndex: i,
@@ -203,7 +268,7 @@ async function runTestCases(
 
 async function runSingleTest(
   tmpDir: string,
-  className: string,
+  index: number,
   testCase: TestCase,
   timeoutMs: number
 ): Promise<{
@@ -222,7 +287,7 @@ async function runSingleTest(
       return;
     }
 
-    const process = spawn('java', ['-cp', tmpDir, className]);
+    const process = spawn('java', [...JVM_FLAGS, '-cp', tmpDir, 'Main', String(index)]);
 
     let stdout = '';
     let stderr = '';
@@ -232,9 +297,6 @@ async function runSingleTest(
       timedOut = true;
       process.kill('SIGKILL');
     }, timeoutMs);
-
-    process.stdin.write(testCase.input || '');
-    process.stdin.end();
 
     process.stdout.on('data', (data) => {
       stdout += data.toString();
@@ -257,18 +319,18 @@ async function runSingleTest(
         return;
       }
 
-      if (code !== 0 && stderr) {
+      if (code !== 0) {
         resolve({
           status: 'RUNTIME_ERROR',
           output: stdout,
           passed: false,
-          error: stderr.trim(),
+          error: stderr.trim() || `Process exited with code ${code}`,
         });
         return;
       }
 
       const trimmedOutput = stdout.trim();
-      const expectedOutput = (testCase.expectedOutput || '').trim();
+      const expectedOutput = testCase.expectedOutput.trim();
       const passed = trimmedOutput === expectedOutput;
 
       resolve({
