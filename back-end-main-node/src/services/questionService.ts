@@ -79,6 +79,10 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Questi
   });
 }
 
+// "Ejecutar" es una prueba rápida: corre solo los primeros casos de ejemplo (visibles) y no
+// persiste nada. La calificación con todos los casos ocurre al enviar la respuesta.
+const MAX_RUN_CASES = 2;
+
 export async function runQuestion(id: number, code: string, language: ProgrammingLanguage) {
   const question = await getQuestion(id);
   const starterCode = question.starterCodes[language];
@@ -94,7 +98,7 @@ export async function runQuestion(id: number, code: string, language: Programmin
     language,
     code,
     templateCode: starterCode,
-    testCases: question.testCases.map((testCase) => ({
+    testCases: question.testCases.slice(0, MAX_RUN_CASES).map((testCase) => ({
       input: testCase.inputValue,
       expectedOutput: testCase.expectedOutput,
       isVisible: true,

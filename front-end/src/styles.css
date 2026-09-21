@@ -161,6 +161,18 @@ code, pre { font-family: var(--font-mono); }
 .console .console-table th, .console .console-table td { border-color: #374151; }
 .console .console-table th { color: #9ca3af; }
 .row-fail td { background: rgba(248, 113, 113, .08); }
+.console-kind { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9ca3af; }
+
+/* Resumen tras enviar una respuesta */
+.submit-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: .85rem 1rem; border-radius: var(--radius); border: 1px solid;
+}
+.submit-summary-text { display: flex; flex-direction: column; gap: .15rem; }
+.submit-correct { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.submit-partial { background: var(--warn-bg); border-color: var(--warn); color: var(--warn); }
+.submit-incorrect { background: var(--fail-bg); border-color: var(--fail); color: var(--fail); }
+.submit-summary-text span { color: var(--text); font-size: .9rem; }
 .cell-error { color: #fca5a5; font-size: .8rem; white-space: pre-wrap; }
 
 /* Admin */

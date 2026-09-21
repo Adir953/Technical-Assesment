@@ -83,8 +83,12 @@ function isJson(value: string): boolean {
           La entrada es un arreglo JSON con los argumentos de la función, p. ej. <code>[[3,5,1,8]]</code> para
           un solo argumento de tipo arreglo. La salida esperada también es JSON: <code>8</code>, <code>"texto"</code>.
         </p>
+        <p class="muted small">
+          Los casos marcados como <strong>ejemplo</strong> se muestran al estudiante y los 2 primeros se usan en
+          <em>Ejecutar</em>. Todos los casos, incluidos los ocultos, se usan al calificar la respuesta enviada.
+        </p>
         <table class="case-table">
-          <thead><tr><th>Entrada (argumentos)</th><th>Salida esperada</th><th>Visible</th><th></th></tr></thead>
+          <thead><tr><th>Entrada (argumentos)</th><th>Salida esperada</th><th>Ejemplo</th><th></th></tr></thead>
           <tbody>
             @for (c of cases(); track $index; let i = $index) {
               <tr>
@@ -98,7 +102,7 @@ function isJson(value: string): boolean {
                 </td>
                 <td class="center">
                   <input type="checkbox" [checked]="c.isVisible" (change)="updateCase(i, { isVisible: !c.isVisible })"
-                         title="Los casos ocultos solo se usan al calificar" />
+                         title="Si no es ejemplo, el caso queda oculto y solo se usa al calificar" />
                 </td>
                 <td>
                   <button type="button" class="btn btn-ghost btn-sm" (click)="removeCase(i)" [disabled]="cases().length === 1"
@@ -165,7 +169,7 @@ export class QuestionForm {
     if (this.cases().some((c) => !this.validInput(c.inputValue)))
       list.push('Cada entrada debe ser un arreglo JSON de argumentos, p. ej. [[1,2,3]].');
     if (this.cases().some((c) => !c.expectedOutput.trim())) list.push('Cada caso necesita una salida esperada.');
-    if (!this.cases().some((c) => c.isVisible)) list.push('Al menos un caso debe ser visible para poder "Ejecutar".');
+    if (!this.cases().some((c) => c.isVisible)) list.push('Al menos un caso debe ser de ejemplo para que el estudiante pueda "Ejecutar".');
     return list;
   });
 

@@ -127,28 +127,31 @@ INSERT INTO question_starter_codes (question_id, programming_language, starter_c
 -- INSERTAR CASOS DE PRUEBA
 -- ==============================================================================
 
+-- is_visible = true  → caso de ejemplo: se muestra en el enunciado y lo corre "Ejecutar" (máx. 2).
+-- is_visible = false → caso oculto: solo se usa al enviar la respuesta para calificar.
+
 -- Casos de prueba para pregunta 1 (Encontrar máximo)
 INSERT INTO test_cases (question_id, input_value, expected_output, is_visible) VALUES
 (1, '[[3, 5, 1, 8, 2]]', '8', true),
 (1, '[[10, 20, 5]]', '20', true),
-(1, '[[-5, -2, -10]]', '-2', true),
-(1, '[[100]]', '100', true),
+(1, '[[-5, -2, -10]]', '-2', false),
+(1, '[[100]]', '100', false),
 (1, '[[7, 7, 7, 7]]', '7', false);
 
 -- Casos de prueba para pregunta 2 (Invertir cadena)
 INSERT INTO test_cases (question_id, input_value, expected_output, is_visible) VALUES
 (2, '["hola"]', '"aloh"', true),
 (2, '["abc"]', '"cba"', true),
-(2, '["a"]', '"a"', true),
-(2, '[""]', '""', true),
+(2, '["a"]', '"a"', false),
+(2, '[""]', '""', false),
 (2, '["racecar"]', '"racecar"', false);
 
 -- Casos de prueba para pregunta 3 (Sumar números pares)
 INSERT INTO test_cases (question_id, input_value, expected_output, is_visible) VALUES
 (3, '[[1, 2, 3, 4, 5, 6]]', '12', true),
 (3, '[[2, 4, 6, 8]]', '20', true),
-(3, '[[1, 3, 5]]', '0', true),
-(3, '[[]]', '0', true),
+(3, '[[1, 3, 5]]', '0', false),
+(3, '[[]]', '0', false),
 (3, '[[0, 2, 4, 6, 8, 10]]', '30', false);
 
 -- ==============================================================================

@@ -1,4 +1,4 @@
-import { eq, and } from 'drizzle-orm';
+import { asc, eq, and } from 'drizzle-orm';
 import type { TestCase, NewTestCase } from '../types/question';
 import { testCases } from '../models';
 import { db, type DbClient } from '../db';
@@ -11,7 +11,8 @@ export async function findVisibleByQuestionId(questionId: number): Promise<TestC
   return db
     .select()
     .from(testCases)
-    .where(and(eq(testCases.questionId, questionId), eq(testCases.isVisible, true)));
+    .where(and(eq(testCases.questionId, questionId), eq(testCases.isVisible, true)))
+    .orderBy(asc(testCases.id));
 }
 
 export async function createMany(

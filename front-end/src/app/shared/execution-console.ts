@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import type { ExecutionResult, ExecutionStatus, SolutionResult } from '../core/models';
+import { FormatArgsPipe, FormatJsonPipe } from './format-args.pipe';
 
 export interface ConsoleTest {
   input: string;
@@ -42,6 +43,7 @@ export function fromRun(result: ExecutionResult): ConsoleView {
   };
 }
 
+/** Tras enviar se muestran todos los casos (ejemplos y ocultos) con sus entradas y salidas. */
 export function fromSubmit(result: SolutionResult, points: number): ConsoleView {
   const qs = result.questionSubmission;
   return {
@@ -74,9 +76,17 @@ export function errorLines(message: string | null): Array<{ line: number; messag
 
 @Component({
   selector: 'app-execution-console',
+  imports: [FormatArgsPipe, FormatJsonPipe],
   template: `
     <div class="console">
-      <div class="console-header">Consola</div>
+      <div class="console-header">
+        Consola
+        @if (!running() && view(); as v) {
+          <span class="console-kind">
+            · {{ v.kind === 'submit' ? 'Calificación con todos los casos' : 'Prueba con casos de ejemplo (no se guarda)' }}
+          </span>
+        }
+      </div>
       @if (running()) {
         <p class="console-line muted">Ejecutando…</p>
       } @else if (view(); as v) {
@@ -118,9 +128,9 @@ export function errorLines(message: string | null): Array<{ line: number; messag
               @for (t of v.tests; track $index) {
                 <tr [class.row-fail]="!t.passed">
                   <td>{{ $index + 1 }}</td>
-                  <td><code>{{ t.input }}</code></td>
-                  <td><code>{{ t.expected }}</code></td>
-                  <td><code>{{ t.actual ?? '—' }}</code>
+                  <td><code>{{ t.input | formatArgs }}</code></td>
+                  <td><code>{{ t.expected | formatJson }}</code></td>
+                  <td><code>{{ t.actual === null ? '—' : (t.actual | formatJson) }}</code>
                     @if (t.error && t.error !== v.error) { <div class="cell-error">{{ t.error }}</div> }
                   </td>
                   <td>{{ t.passed ? '✔' : '✘' }}</td>

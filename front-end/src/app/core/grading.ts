@@ -27,7 +27,10 @@ export function latestByQuestion(detail: SubmissionDetail): Map<number, Question
   return latest;
 }
 
-export function questionState(attempt: QuestionSubmission | undefined, points: number): QuestionState {
+export function questionState(
+  attempt: Pick<QuestionSubmission, 'score'> | undefined,
+  points: number
+): QuestionState {
   if (!attempt) return 'pending';
   const score = attempt.score ?? 0;
   if (score >= points) return 'correct';
