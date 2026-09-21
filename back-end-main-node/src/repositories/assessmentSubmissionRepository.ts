@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
 import { assessmentSubmissions } from '../models';
 import type { AssessmentSubmission, NewAssessmentSubmission } from '../types/submission';
 
@@ -10,6 +10,15 @@ export async function findById(id: number): Promise<AssessmentSubmission | undef
     .from(assessmentSubmissions)
     .where(eq(assessmentSubmissions.id, id));
   return submission;
+}
+
+/** Intentos de un estudiante, del más reciente al más antiguo. */
+export async function findByStudent(studentId: number): Promise<AssessmentSubmission[]> {
+  return db
+    .select()
+    .from(assessmentSubmissions)
+    .where(eq(assessmentSubmissions.studentId, studentId))
+    .orderBy(desc(assessmentSubmissions.startedAt), desc(assessmentSubmissions.id));
 }
 
 export async function findInProgress(

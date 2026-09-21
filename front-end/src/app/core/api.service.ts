@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
 import type {
   Assessment,
   AssessmentDetail,
@@ -55,8 +56,28 @@ export class ApiService {
     return this.http.post<ExecutionResult>(`${API}/questions/${id}/run`, { code, language });
   }
 
+  /** Intentos del estudiante, del más reciente al más antiguo. */
+  listSubmissions(studentId: number) {
+    return this.http.get<AssessmentSubmission[]>(`${API}/submissions`, { params: { studentId } });
+  }
+
   startAssessment(studentId: number, assessmentId: number) {
     return this.http.post<AssessmentSubmission>(`${API}/submissions`, { studentId, assessmentId });
+  }
+
+  /** Crea un intento nuevo; si ya hay uno en curso (409), devuelve el id de ese intento. */
+  async startOrResume(studentId: number, assessmentId: number): Promise<number> {
+    try {
+      return (await firstValueFrom(this.startAssessment(studentId, assessmentId))).id;
+    } catch (err) {
+      // 409: "Student X already has attempt N in progress for this assessment"
+      const match =
+        err instanceof HttpErrorResponse && err.status === 409
+          ? /attempt (\d+)/.exec(err.error?.error?.message ?? '')
+          : null;
+      if (match) return Number(match[1]);
+      throw err;
+    }
   }
 
   getSubmission(id: number) {

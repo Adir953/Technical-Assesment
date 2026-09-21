@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { checkSyntax } from './syntaxCheck';
 
 interface TestCase {
   input: string;
@@ -62,7 +63,12 @@ export async function executePython(
 
     fs.writeFileSync(scriptPath, fullCode);
 
-    // Execute test cases (syntax errors will be caught during execution)
+    const syntaxError = await checkSyntax('python3', ['-m', 'py_compile', scriptPath], tmpDir, timeoutMs);
+    if (syntaxError) {
+      return { status: 'COMPILE_ERROR', error: syntaxError, passedTests: 0, totalTests: testCases.length };
+    }
+
+    // Execute test cases
     const testResults = await runTestCases(scriptPath, testCases, timeoutMs);
 
     return testResults;

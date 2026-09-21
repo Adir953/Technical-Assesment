@@ -2,6 +2,7 @@ import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
+import { checkSyntax } from './syntaxCheck';
 
 interface TestCase {
   input: string;
@@ -68,6 +69,11 @@ export async function executeJavaScript(
     }
 
     fs.writeFileSync(scriptPath, fullCode);
+
+    const syntaxError = await checkSyntax('node', ['--check', scriptPath], tmpDir, timeoutMs);
+    if (syntaxError) {
+      return { status: 'COMPILE_ERROR', error: syntaxError, passedTests: 0, totalTests: testCases.length };
+    }
 
     // Execute test cases
     const testResults = await runTestCases(scriptPath, testCases, timeoutMs);

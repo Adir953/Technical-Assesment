@@ -173,6 +173,11 @@ export class AssessmentDetailPage {
   private async load(id: number) {
     try {
       const submission = await firstValueFrom(this.api.getSubmission(id));
+      // Un intento terminado siempre se consulta en su reporte.
+      if (submission.completedAt) {
+        await this.router.navigate(['/submissions', id, 'results'], { replaceUrl: true });
+        return;
+      }
       const assessment = await firstValueFrom(this.api.getAssessment(submission.assessmentId));
       this.submission.set(submission);
       this.assessment.set(assessment);

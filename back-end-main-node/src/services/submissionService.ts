@@ -24,6 +24,11 @@ import type { TestCase } from '../types/question';
 
 export { type SubmitSolutionInput, type SolutionResult, type SubmissionDetail };
 
+export async function listByStudent(studentId: number): Promise<AssessmentSubmission[]> {
+  await requireRole(studentId, 'student');
+  return assessmentSubmissionRepository.findByStudent(studentId);
+}
+
 export async function startAssessment(
   studentId: number,
   assessmentId: number

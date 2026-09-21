@@ -12,7 +12,6 @@ export interface SessionUser {
 }
 
 const USER_KEY = 'tap.user';
-const ATTEMPTS_KEY = 'tap.attempts';
 
 function read<T>(key: string, fallback: T): T {
   try {
@@ -47,20 +46,5 @@ export class SessionService {
   logout() {
     this.user.set(null);
     write(USER_KEY, null);
-  }
-
-  /** Intentos conocidos por estudiante: { "studentId:assessmentId": submissionId } */
-  getAttempt(assessmentId: number): number | null {
-    const user = this.user();
-    if (!user) return null;
-    return read<Record<string, number>>(ATTEMPTS_KEY, {})[`${user.id}:${assessmentId}`] ?? null;
-  }
-
-  saveAttempt(assessmentId: number, submissionId: number) {
-    const user = this.user();
-    if (!user) return;
-    const attempts = read<Record<string, number>>(ATTEMPTS_KEY, {});
-    attempts[`${user.id}:${assessmentId}`] = submissionId;
-    write(ATTEMPTS_KEY, attempts);
   }
 }

@@ -9,6 +9,18 @@ export interface SubmittedNotice {
   total: number;
 }
 
+/** Porcentaje mínimo del puntaje total para aprobar un assessment. */
+export const PASSING_PERCENT = 60;
+
+export function scorePercent(submission: AssessmentSubmission): number {
+  const total = submission.totalPossiblePoints;
+  return total ? Math.round(((submission.finalScore ?? 0) / total) * 100) : 0;
+}
+
+export function isApproved(submission: AssessmentSubmission): boolean {
+  return scorePercent(submission) >= PASSING_PERCENT;
+}
+
 export type QuestionState = 'pending' | 'correct' | 'partial' | 'incorrect';
 
 export const STATE_LABEL: Record<QuestionState, string> = {

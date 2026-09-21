@@ -2,6 +2,15 @@ import { Request, Response, NextFunction } from 'express';
 import * as submissionService from '../services/submissionService';
 import { parseId, parseLanguage, requireString } from '../utils/validation';
 
+export async function listSubmissions(req: Request, res: Response, next: NextFunction) {
+  try {
+    const studentId = parseId(req.query.studentId, 'studentId');
+    res.json(await submissionService.listByStudent(studentId));
+  } catch (error) {
+    next(error);
+  }
+}
+
 export async function startAssessment(req: Request, res: Response, next: NextFunction) {
   try {
     const studentId = parseId(req.body?.studentId, 'studentId');

@@ -163,6 +163,23 @@ code, pre { font-family: var(--font-mono); }
 .row-fail td { background: rgba(248, 113, 113, .08); }
 .console-kind { font-weight: 400; text-transform: none; letter-spacing: 0; color: #9ca3af; }
 
+/* Estado del último intento (listado) y resultado aprobado / no aprobado */
+.card-title-row { display: flex; justify-content: space-between; align-items: flex-start; gap: .75rem; }
+.card-title-row .badge { flex-shrink: 0; margin-top: .2rem; }
+.last-result { margin: 0 0 1rem; font-size: .9rem; }
+.card-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.result-banner {
+  display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
+  padding: .85rem 1rem; border-radius: var(--radius); border: 1px solid; margin: .5rem 0 1rem;
+}
+.result-banner > div { display: flex; flex-direction: column; gap: .15rem; }
+.result-banner span { color: var(--text); font-size: .9rem; }
+.retake-confirm { display: flex; flex-direction: column; gap: .5rem; align-items: flex-end; }
+.retake-confirm > span { font-size: .85rem; }
+.retake-actions { display: flex; gap: .5rem; }
+.result-pass { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
+.result-fail { background: var(--fail-bg); border-color: var(--fail); color: var(--fail); }
+
 /* Resumen tras enviar una respuesta */
 .submit-summary {
   display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;
