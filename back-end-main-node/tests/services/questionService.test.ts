@@ -39,7 +39,7 @@ describe('questionService.runQuestion', () => {
     );
   });
 
-  it('solo ejecuta los primeros casos visibles', async () => {
+  it('GIVEN una pregunta con tres casos visibles, WHEN se llama a runQuestion, THEN solo ejecuta los primeros con la plantilla del lenguaje', async () => {
     jest.mocked(runCode).mockResolvedValue({ status: 'SUCCESS' });
 
     await runQuestion(2, 'def reverse_string(s):\n    return s[::-1]\n', 'python');
@@ -49,7 +49,7 @@ describe('questionService.runQuestion', () => {
     expect(request.testCases).toHaveLength(2);
   });
 
-  it('rechaza un lenguaje sin código inicial', async () => {
+  it('GIVEN un lenguaje sin código inicial para la pregunta, WHEN se llama a runQuestion, THEN responde 400 sin llamar al runner', async () => {
     await expect(runQuestion(2, 'function reverseString() {}', 'javascript')).rejects.toMatchObject({
       status: 400,
       message: 'Language javascript is not allowed for question 2',

@@ -18,7 +18,7 @@ describe('ApiService.startOrResume', () => {
 
   afterEach(() => http.verify());
 
-  it('crea un intento nuevo y devuelve su id', async () => {
+  it('GIVEN un assessment sin intento en curso, WHEN se llama a startOrResume, THEN crea un intento nuevo y devuelve su id', async () => {
     const result = api.startOrResume(1);
 
     const req = http.expectOne('/api/submissions');
@@ -28,7 +28,7 @@ describe('ApiService.startOrResume', () => {
     expect(await result).toBe(15);
   });
 
-  it('retoma el intento en curso cuando el backend responde 409', async () => {
+  it('GIVEN un intento en curso (el backend responde 409), WHEN se llama a startOrResume, THEN retoma ese intento', async () => {
     const result = api.startOrResume(1);
 
     http.expectOne('/api/submissions').flush(
@@ -39,7 +39,7 @@ describe('ApiService.startOrResume', () => {
     expect(await result).toBe(12);
   });
 
-  it('propaga cualquier otro error', async () => {
+  it('GIVEN un error distinto de 409, WHEN se llama a startOrResume, THEN lo propaga', async () => {
     const result = api.startOrResume(99);
 
     http.expectOne('/api/submissions').flush(

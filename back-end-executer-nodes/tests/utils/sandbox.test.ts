@@ -14,7 +14,7 @@ function processResult(overrides: Partial<SandboxResult> = {}): SandboxResult {
 }
 
 describe('evaluateRun', () => {
-  it('pasa si la salida coincide, ignorando el salto de línea final', () => {
+  it('GIVEN una salida igual a la esperada con salto de línea final, WHEN se evalúa, THEN el caso pasa con SUCCESS', () => {
     expect(evaluateRun(processResult({ stdout: '8\n' }), '8')).toMatchObject({
       status: 'SUCCESS',
       passed: true,
@@ -22,7 +22,7 @@ describe('evaluateRun', () => {
     });
   });
 
-  it('marca WRONG_ANSWER indicando lo esperado y lo obtenido', () => {
+  it('GIVEN una salida distinta a la esperada, WHEN se evalúa, THEN marca WRONG_ANSWER indicando lo esperado y lo obtenido', () => {
     expect(evaluateRun(processResult({ stdout: '7\n' }), '8')).toMatchObject({
       status: 'WRONG_ANSWER',
       passed: false,
@@ -30,13 +30,13 @@ describe('evaluateRun', () => {
     });
   });
 
-  it('reporta el tiempo límite antes que cualquier otra cosa', () => {
+  it('GIVEN un proceso que superó el tiempo límite, WHEN se evalúa, THEN reporta TIME_LIMIT_EXCEEDED antes que cualquier otro estado', () => {
     const run = processResult({ timedOut: true, exitCode: null, signal: 'SIGKILL' });
 
     expect(evaluateRun(run, '8').status).toBe('TIME_LIMIT_EXCEEDED');
   });
 
-  it('usa stderr como mensaje cuando el proceso termina con error', () => {
+  it('GIVEN un proceso que termina con error, WHEN se evalúa, THEN reporta RUNTIME_ERROR usando stderr como mensaje', () => {
     const run = processResult({ exitCode: 1, stderr: 'ZeroDivisionError: division by zero\n' });
 
     expect(evaluateRun(run, '8')).toMatchObject({

@@ -99,7 +99,7 @@ describe('submissionService', () => {
   });
 
   describe('submitSolution', () => {
-    it('da puntaje parcial según los casos que pasan', async () => {
+    it('GIVEN una solución que pasa 4 de 5 casos, WHEN se llama a submitSolution, THEN guarda un puntaje parcial proporcional', async () => {
       jest.mocked(runCode).mockResolvedValue({
         status: 'WRONG_ANSWER',
         testResults: cases.map((c, i) => ({
@@ -119,7 +119,7 @@ describe('submissionService', () => {
       expect(testCaseResultRepository.createMany).toHaveBeenCalledTimes(1);
     });
 
-    it('guarda el error de compilación con puntaje 0', async () => {
+    it('GIVEN una solución que no compila, WHEN se llama a submitSolution, THEN guarda el error de compilación con puntaje 0', async () => {
       jest.mocked(runCode).mockResolvedValue({
         status: 'COMPILE_ERROR',
         error: 'Solution.java:3: error: cannot find symbol',
@@ -138,7 +138,7 @@ describe('submissionService', () => {
       );
     });
 
-    it('no acepta envíos en un intento que ya terminó', async () => {
+    it('GIVEN un intento que ya terminó, WHEN se llama a submitSolution, THEN responde 409 sin ejecutar el código', async () => {
       jest.mocked(assessmentSubmissionRepository.findById).mockResolvedValue({
         ...submission,
         completedAt: new Date(),
@@ -148,7 +148,7 @@ describe('submissionService', () => {
       expect(runCode).not.toHaveBeenCalled();
     });
 
-    it('rechaza un envío fuera de tiempo sin ejecutarlo y cierra el intento con lo ya enviado', async () => {
+    it('GIVEN un intento fuera de tiempo, WHEN se llama a submitSolution, THEN responde 409 sin ejecutarlo y cierra el intento con lo ya enviado', async () => {
       jest.mocked(assessmentSubmissionRepository.isPastDeadline).mockResolvedValue(true);
       jest.mocked(questionSubmissionRepository.findByAssessmentSubmission).mockResolvedValue([
         attempt(2, 1, 6),
@@ -163,7 +163,7 @@ describe('submissionService', () => {
       expect(assessmentSubmissionRepository.complete).toHaveBeenCalledWith(1, 6);
     });
 
-    it('consulta el tiempo límite del intento con el margen de gracia', async () => {
+    it('GIVEN un intento dentro del tiempo, WHEN se llama a submitSolution, THEN consulta el tiempo límite con el margen de gracia y ejecuta el código', async () => {
       jest.mocked(runCode).mockResolvedValue({ status: 'SUCCESS', testResults: [] });
 
       await submissionService.submitSolution(solution);
@@ -172,14 +172,14 @@ describe('submissionService', () => {
       expect(runCode).toHaveBeenCalledTimes(1);
     });
 
-    it('rechaza preguntas que no son del assessment', async () => {
+    it('GIVEN una pregunta que no es del assessment, WHEN se llama a submitSolution, THEN responde 400', async () => {
       jest.mocked(assessmentQuestionRepository.isQuestionInAssessment).mockResolvedValue(false);
 
       await expect(submissionService.submitSolution(solution)).rejects.toMatchObject({ status: 400 });
     });
   });
 
-  it('completeAssessment suma solo el último envío de cada pregunta', async () => {
+  it('GIVEN varios envíos de una misma pregunta, WHEN se llama a completeAssessment, THEN suma solo el último envío de cada pregunta', async () => {
     // El repositorio devuelve los envíos del más reciente al más antiguo
     jest.mocked(questionSubmissionRepository.findByAssessmentSubmission).mockResolvedValue([
       attempt(3, 1, 10),
@@ -192,7 +192,7 @@ describe('submissionService', () => {
     expect(assessmentSubmissionRepository.complete).toHaveBeenCalledWith(1, 17);
   });
 
-  it('completeAssessment se permite aunque el tiempo haya vencido (cierre automático del front)', async () => {
+  it('GIVEN un intento con el tiempo vencido, WHEN se llama a completeAssessment, THEN lo cierra igualmente (cierre automático del front)', async () => {
     jest.mocked(assessmentSubmissionRepository.isPastDeadline).mockResolvedValue(true);
     jest.mocked(questionSubmissionRepository.findByAssessmentSubmission).mockResolvedValue([]);
 
@@ -201,7 +201,7 @@ describe('submissionService', () => {
     expect(assessmentSubmissionRepository.complete).toHaveBeenCalledWith(1, 0);
   });
 
-  it('no deja que un estudiante use el intento de otro', async () => {
+  it('GIVEN un intento de otro estudiante, WHEN se consulta o se envía una solución, THEN responde 403 sin ejecutar el código', async () => {
     await expect(submissionService.getSubmissionDetail(1, 4)).rejects.toMatchObject({ status: 403 });
     await expect(submissionService.submitSolution({ ...solution, studentId: 4 })).rejects.toMatchObject({
       status: 403,
@@ -209,7 +209,7 @@ describe('submissionService', () => {
     expect(runCode).not.toHaveBeenCalled();
   });
 
-  it('startAssessment no deja abrir dos intentos del mismo assessment', async () => {
+  it('GIVEN un intento en curso del mismo assessment, WHEN se llama a startAssessment, THEN responde 409 sin crear otro intento', async () => {
     jest.mocked(assessmentRepository.findById).mockResolvedValue({
       id: 1,
       createdBy: 1,

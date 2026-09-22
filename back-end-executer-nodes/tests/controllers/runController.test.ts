@@ -8,7 +8,7 @@ jest.mock('../../src/services/executionService', () => ({ execute: jest.fn() }))
 describe('runController.run', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('responde 400 si falta el código inicial', async () => {
+  it('GIVEN una petición sin código inicial, WHEN se llama a run, THEN responde 400 con COMPILE_ERROR sin ejecutar el código', async () => {
     const { req, res } = mockHttp({ code: 'def f(x):\n    return x\n', testCases: [] });
 
     await run(req, res);
@@ -18,7 +18,7 @@ describe('runController.run', () => {
     expect(executionService.execute).not.toHaveBeenCalled();
   });
 
-  it('normaliza la salida esperada antes de ejecutar', async () => {
+  it('GIVEN una salida esperada con espacios, WHEN se llama a run, THEN la normaliza a JSON compacto antes de ejecutar', async () => {
     const result: ExecutionResult = { status: 'SUCCESS', passedTests: 1, totalTests: 1 };
     jest.mocked(executionService.execute).mockResolvedValue(result);
     const { req, res } = mockHttp({
@@ -37,7 +37,7 @@ describe('runController.run', () => {
     expect(res.json).toHaveBeenCalledWith(result);
   });
 
-  it('responde 500 si el ejecutor falla', async () => {
+  it('GIVEN un ejecutor que falla, WHEN se llama a run, THEN responde 500 con RUNTIME_ERROR y el mensaje del error', async () => {
     jest.spyOn(console, 'error').mockImplementation(() => {});
     jest.mocked(executionService.execute).mockRejectedValue(new Error('spawn javac ENOENT'));
     const { req, res } = mockHttp({ code: 'x', templateCode: 'y', testCases: [] });

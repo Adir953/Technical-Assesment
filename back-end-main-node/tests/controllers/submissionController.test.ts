@@ -22,7 +22,7 @@ const student = { id: 3, role: 'student' as const };
 describe('submissionController', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('submitSolution toma el intento de la URL y el estudiante de la sesión', async () => {
+  it('GIVEN un intento en la URL y un estudiante en sesión, WHEN se llama a submitSolution, THEN envía la solución con ese intento y ese estudiante y responde 201', async () => {
     const result = { status: 'SUCCESS', testCaseResults: [] } as unknown as SolutionResult;
     jest.mocked(submissionService.submitSolution).mockResolvedValue(result);
     const { req, res, next } = mockHttp({
@@ -44,7 +44,7 @@ describe('submissionController', () => {
     expect(res.json).toHaveBeenCalledWith(result);
   });
 
-  it('listSubmissions lista los intentos del estudiante de la sesión', async () => {
+  it('GIVEN un studentId distinto en la query, WHEN se llama a listSubmissions, THEN lista los intentos del estudiante de la sesión', async () => {
     jest.mocked(submissionService.listByStudent).mockResolvedValue([]);
     const { req, res, next } = mockHttp({ query: { studentId: '99' }, user: student });
 
@@ -54,7 +54,7 @@ describe('submissionController', () => {
     expect(res.json).toHaveBeenCalledWith([]);
   });
 
-  it('startAssessment ignora un studentId enviado en el body', async () => {
+  it('GIVEN un studentId distinto en el body, WHEN se llama a startAssessment, THEN lo ignora y usa el estudiante de la sesión', async () => {
     jest.mocked(submissionService.startAssessment).mockResolvedValue({ id: 15 } as AssessmentSubmission);
     const { req, res, next } = mockHttp({ body: { studentId: 99, assessmentId: 1 }, user: student });
 
@@ -64,7 +64,7 @@ describe('submissionController', () => {
     expect(res.status).toHaveBeenCalledWith(201);
   });
 
-  it('completeAssessment devuelve el 409 si el intento ya estaba cerrado', async () => {
+  it('GIVEN un intento ya cerrado, WHEN se llama a completeAssessment, THEN pasa el error 409 al middleware de errores', async () => {
     const error = conflict('Assessment submission 5 is already completed');
     jest.mocked(submissionService.completeAssessment).mockRejectedValue(error);
     const { req, res, next } = mockHttp({ params: { id: '5' }, user: student });

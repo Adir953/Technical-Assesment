@@ -4,19 +4,19 @@ import { ConsoleView, ExecutionConsole, errorLines, fromSubmit } from './executi
 import type { SolutionResult } from '../../core/models';
 
 describe('errorLines', () => {
-  it('extrae la línea de errores de Python, Node y Java', () => {
+  it('GIVEN errores de Python, Node y Java, WHEN se llama a errorLines, THEN extrae la línea de cada error', () => {
     expect(errorLines('File "solution.py", line 2\n    return max(arr')[0].line).toBe(2);
     expect(errorLines('solution.js:4\n  return x +')[0].line).toBe(4);
     expect(errorLines("Solution.java:3: error: ';' expected")[0].line).toBe(3);
   });
 
-  it('devuelve una lista vacía si no hay error', () => {
+  it('GIVEN que no hay error, WHEN se llama a errorLines, THEN devuelve una lista vacía', () => {
     expect(errorLines(null)).toEqual([]);
   });
 });
 
 describe('fromSubmit', () => {
-  it('convierte la respuesta del backend en la vista de la consola', () => {
+  it('GIVEN la respuesta del backend a un envío, WHEN se llama a fromSubmit, THEN la convierte en la vista de la consola', () => {
     const result = {
       status: 'WRONG_ANSWER',
       questionSubmission: { score: 6, compilationError: null, executionOutput: null },
@@ -42,7 +42,7 @@ describe('ExecutionConsole', () => {
     });
   });
 
-  it('muestra "Compilación: Error" cuando el código no compila', async () => {
+  it('GIVEN un código que no compila, WHEN se muestra la consola, THEN indica "Compilación: Error" y la línea del error', async () => {
     const view: ConsoleView = {
       kind: 'run',
       status: 'COMPILE_ERROR',

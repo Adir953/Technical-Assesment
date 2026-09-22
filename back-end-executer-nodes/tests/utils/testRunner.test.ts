@@ -8,7 +8,7 @@ const cases: TestCase[] = ['1', '2', '3'].map((n) => ({
 }));
 
 describe('runTestCases', () => {
-  it('el estado general es el del primer caso que falla', async () => {
+  it('GIVEN varios casos donde alguno falla, WHEN se ejecutan, THEN el estado general es el del primer caso que falla', async () => {
     const outcomes: TestOutcome[] = [
       { status: 'SUCCESS', passed: true, output: '1' },
       { status: 'TIME_LIMIT_EXCEEDED', passed: false, error: 'Execution time exceeded' },
@@ -26,7 +26,7 @@ describe('runTestCases', () => {
     expect(result.testResults?.map((r) => r.passed)).toEqual([true, false, false]);
   });
 
-  it('responde SUCCESS cuando pasan todos', async () => {
+  it('GIVEN casos que pasan todos, WHEN se ejecutan, THEN responde SUCCESS', async () => {
     const result = await runTestCases(cases, async (testCase) => ({
       status: 'SUCCESS',
       passed: true,

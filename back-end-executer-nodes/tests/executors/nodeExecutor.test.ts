@@ -11,7 +11,7 @@ const cases: TestCase[] = [
 ];
 
 describe('executeJavaScript', () => {
-  it('califica una solución correcta', async () => {
+  it('GIVEN una solución correcta, WHEN se ejecuta, THEN devuelve SUCCESS con todos los casos aprobados', async () => {
     const result = await executeJavaScript(
       'function findMax(arr) {\n  return Math.max(...arr);\n}\n',
       template,
@@ -21,14 +21,14 @@ describe('executeJavaScript', () => {
     expect(result).toMatchObject({ status: 'SUCCESS', passedTests: 2, totalTests: 2 });
   });
 
-  it('devuelve WRONG_ANSWER con la salida obtenida', async () => {
+  it('GIVEN una solución que devuelve un valor incorrecto, WHEN se ejecuta, THEN devuelve WRONG_ANSWER con la salida obtenida', async () => {
     const result = await executeJavaScript('function findMax(arr) {\n  return arr[0];\n}\n', template, cases);
 
     expect(result.status).toBe('WRONG_ANSWER');
     expect(result.testResults?.[0]).toMatchObject({ actualOutput: '3', passed: false });
   });
 
-  it('reporta un error de sintaxis como COMPILE_ERROR', async () => {
+  it('GIVEN un código con error de sintaxis, WHEN se ejecuta, THEN reporta COMPILE_ERROR sin casos aprobados', async () => {
     const result = await executeJavaScript('function findMax(arr) {\n  return arr[0\n}\n', template, cases);
 
     expect(result.status).toBe('COMPILE_ERROR');
@@ -36,7 +36,7 @@ describe('executeJavaScript', () => {
     expect(result.passedTests).toBe(0);
   });
 
-  it('reporta una excepción como RUNTIME_ERROR', async () => {
+  it('GIVEN un código que lanza una excepción, WHEN se ejecuta, THEN reporta RUNTIME_ERROR con el mensaje de la excepción', async () => {
     const result = await executeJavaScript(
       'function findMax(arr) {\n  throw new Error("arreglo vacío");\n}\n',
       template,

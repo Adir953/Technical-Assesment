@@ -30,7 +30,7 @@ describe('authInterceptor', () => {
     jest.spyOn(router, 'navigate').mockResolvedValue(true);
   });
 
-  it('cierra la sesión y manda al login si la cookie venció', async () => {
+  it('GIVEN una cookie de sesión vencida, WHEN una petición responde 401, THEN cierra la sesión y manda al login', async () => {
     const result = firstValueFrom(http.get('/api/submissions'));
     backend.expectOne('/api/submissions').flush({}, { status: 401, statusText: 'Unauthorized' });
 
@@ -39,7 +39,7 @@ describe('authInterceptor', () => {
     expect(router.navigate).toHaveBeenCalledWith(['/login'], expect.anything());
   });
 
-  it('deja que el login maneje su propio 401', async () => {
+  it('GIVEN una petición de login, WHEN responde 401, THEN deja que el login maneje el error sin cerrar la sesión', async () => {
     const result = firstValueFrom(http.post('/api/auth/login', {}));
     backend.expectOne('/api/auth/login').flush({}, { status: 401, statusText: 'Unauthorized' });
 

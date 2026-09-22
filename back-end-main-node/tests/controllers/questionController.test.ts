@@ -27,7 +27,7 @@ describe('questionController', () => {
   beforeEach(() => jest.clearAllMocks());
 
   describe('createQuestion', () => {
-    it('crea la pregunta y deja visibles los casos por defecto', async () => {
+    it('GIVEN casos de prueba sin isVisible, WHEN se llama a createQuestion, THEN crea la pregunta con esos casos visibles y responde 201', async () => {
       jest.mocked(questionService.createQuestion).mockResolvedValue({ id: 4 } as QuestionDetail);
       const { req, res, next } = mockHttp({ body, user: admin });
 
@@ -47,7 +47,7 @@ describe('questionController', () => {
       expect(res.status).toHaveBeenCalledWith(201);
     });
 
-    it('rechaza código inicial de un lenguaje no soportado', async () => {
+    it('GIVEN código inicial de un lenguaje no soportado, WHEN se llama a createQuestion, THEN responde 400 sin crear la pregunta', async () => {
       const { req, res, next } = mockHttp({
         body: { ...body, starterCodes: { ruby: 'def sum_even_numbers(arr)\nend' } },
         user: admin,
@@ -61,7 +61,7 @@ describe('questionController', () => {
       expect(questionService.createQuestion).not.toHaveBeenCalled();
     });
 
-    it('rechaza testCases que no son un arreglo', async () => {
+    it('GIVEN testCases que no son un arreglo, WHEN se llama a createQuestion, THEN responde 400', async () => {
       const { req, res, next } = mockHttp({ body: { ...body, testCases: 'nada' }, user: admin });
 
       await createQuestion(req, res, next);
@@ -72,7 +72,7 @@ describe('questionController', () => {
     });
   });
 
-  it('runQuestion exige el código antes de llamar al runner', async () => {
+  it('GIVEN una petición sin código, WHEN se llama a runQuestion, THEN responde 400 sin llamar al runner', async () => {
     const { req, res, next } = mockHttp({ params: { id: '1' }, body: { language: 'python' } });
 
     await runQuestion(req, res, next);

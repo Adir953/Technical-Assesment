@@ -25,7 +25,7 @@ const assessment: AssessmentDetail = {
 describe('assessmentController', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('createAssessment toma el autor de la sesión y responde 201', async () => {
+  it('GIVEN un body con un createdBy distinto al de la sesión, WHEN se llama a createAssessment, THEN usa como autor al usuario de la sesión y responde 201', async () => {
     jest.mocked(assessmentService.createAssessment).mockResolvedValue(assessment);
     const { req, res, next } = mockHttp({
       // Un createdBy en el body se ignora: el autor es siempre el usuario de la sesión.
@@ -47,7 +47,7 @@ describe('assessmentController', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('getAssessment responde 400 con un id inválido', async () => {
+  it('GIVEN un id inválido, WHEN se llama a getAssessment, THEN responde 400 sin consultar el servicio', async () => {
     const { req, res, next } = mockHttp({ params: { id: 'abc' } });
 
     await getAssessment(req, res, next);
@@ -56,7 +56,7 @@ describe('assessmentController', () => {
     expect(assessmentService.getAssessment).not.toHaveBeenCalled();
   });
 
-  it('pasa los errores del servicio al middleware de errores', async () => {
+  it('GIVEN un servicio que lanza un error, WHEN se llama a getAssessment, THEN pasa el error al middleware de errores', async () => {
     const error = notFound('Assessment 99 not found');
     jest.mocked(assessmentService.getAssessment).mockRejectedValue(error);
     const { req, res, next } = mockHttp({ params: { id: '99' } });

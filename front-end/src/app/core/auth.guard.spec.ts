@@ -26,26 +26,26 @@ describe('guards de autenticación', () => {
     });
   });
 
-  it('envía al login recordando la página pedida si no hay sesión', () => {
+  it('GIVEN un usuario sin sesión, WHEN entra a una página protegida, THEN lo envía al login recordando la página pedida', () => {
     user.set(null);
     expect(run(authGuard, '/submissions/5')).toBe('/login?returnUrl=%2Fsubmissions%2F5');
   });
 
-  it('deja pasar al estudiante a sus intentos pero no al panel del evaluador', () => {
+  it('GIVEN un estudiante con sesión, WHEN entra a sus intentos o al panel del evaluador, THEN solo lo deja pasar a sus intentos', () => {
     user.set(student);
 
     expect(run(studentGuard)).toBe(true);
     expect(run(adminGuard)).toBe('/assessments');
   });
 
-  it('redirige al evaluador a su panel si intenta resolver un assessment', () => {
+  it('GIVEN un evaluador con sesión, WHEN intenta resolver un assessment, THEN lo redirige a su panel', () => {
     user.set(admin);
 
     expect(run(adminGuard)).toBe(true);
     expect(run(studentGuard)).toBe('/admin');
   });
 
-  it('saca del login a quien ya tiene sesión', () => {
+  it('GIVEN un usuario con sesión, WHEN abre el login, THEN lo redirige a su panel', () => {
     user.set(null);
     expect(run(guestGuard, '/login')).toBe(true);
 

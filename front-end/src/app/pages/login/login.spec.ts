@@ -46,11 +46,11 @@ describe('LoginPage', () => {
     await fixture.whenStable();
   });
 
-  it('no pide el perfil: el rol lo decide el backend', () => {
+  it('GIVEN el formulario de login, WHEN se muestra, THEN no pide el perfil porque el rol lo decide el backend', () => {
     expect(fixture.nativeElement.querySelector('input[name="role"]')).toBeNull();
   });
 
-  it('inicia sesión y lleva al evaluador a su panel', async () => {
+  it('GIVEN credenciales válidas de un evaluador, WHEN inicia sesión, THEN guarda la sesión y lo lleva a su panel', async () => {
     api.login.mockReturnValue(of(admin));
 
     type('username', '  admin ');
@@ -62,7 +62,7 @@ describe('LoginPage', () => {
     expect(router.navigateByUrl).toHaveBeenCalledWith('/admin');
   });
 
-  it('vuelve a la página que se quería abrir, pero nunca a otro sitio', async () => {
+  it('GIVEN una returnUrl, WHEN inicia sesión, THEN vuelve a esa página solo si es del propio sitio', async () => {
     api.login.mockReturnValue(of(admin));
 
     fixture.componentRef.setInput('returnUrl', '/admin/questions/new');
@@ -74,7 +74,7 @@ describe('LoginPage', () => {
     expect(router.navigateByUrl).toHaveBeenLastCalledWith('/admin');
   });
 
-  it('muestra un error cuando las credenciales no son válidas', async () => {
+  it('GIVEN credenciales inválidas, WHEN inicia sesión, THEN muestra un error y no guarda la sesión', async () => {
     api.login.mockReturnValue(throwError(() => new HttpErrorResponse({ status: 401 })));
 
     type('username', 'estudiante');

@@ -12,7 +12,7 @@ function tokenFor(id: number, role: 'student' | 'admin'): string {
 }
 
 describe('requireAuth', () => {
-  it('deja el usuario del token en req.user', () => {
+  it('GIVEN una cookie con un token válido, WHEN pasa por requireAuth, THEN deja el usuario del token en req.user', () => {
     const { req, res, next } = mockHttp({ cookies: { [SESSION_COOKIE]: tokenFor(3, 'student') } });
 
     requireAuth()(req, res, next);
@@ -21,7 +21,7 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
-  it('responde 401 sin cookie de sesión', () => {
+  it('GIVEN una petición sin cookie de sesión, WHEN pasa por requireAuth, THEN responde 401', () => {
     const { req, res, next } = mockHttp();
 
     requireAuth()(req, res, next);
@@ -29,7 +29,7 @@ describe('requireAuth', () => {
     expect(next).toHaveBeenCalledWith(expect.objectContaining({ status: 401 }));
   });
 
-  it('responde 401 con un token firmado con otro secreto o vencido', () => {
+  it('GIVEN un token firmado con otro secreto o vencido, WHEN pasa por requireAuth, THEN responde 401', () => {
     const forged = jwt.sign({ role: 'admin' }, 'otro-secreto', { subject: '1' });
     const expired = jwt.sign({ role: 'admin' }, env.auth.jwtSecret, { subject: '1', expiresIn: -10 });
 
@@ -40,7 +40,7 @@ describe('requireAuth', () => {
     }
   });
 
-  it('responde 403 si el rol no es el exigido', () => {
+  it('GIVEN un usuario con un rol distinto al exigido, WHEN pasa por requireAuth, THEN responde 403', () => {
     const { req, res, next } = mockHttp({ cookies: { [SESSION_COOKIE]: tokenFor(3, 'student') } });
 
     requireAuth('admin')(req, res, next);
