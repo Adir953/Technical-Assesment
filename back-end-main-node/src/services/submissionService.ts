@@ -24,6 +24,9 @@ import type { ExecutionResult } from '../types/execution';
 
 export { type SubmitSolutionInput, type SolutionResult, type SubmissionDetail };
 
+// Margen sobre el tiempo límite para un envío hecho en los últimos segundos que tarda en llegar.
+const DEADLINE_GRACE_SECONDS = 30;
+
 export async function listByStudent(studentId: number): Promise<AssessmentSubmission[]> {
   return assessmentSubmissionRepository.findByStudent(studentId);
 }
@@ -71,6 +74,13 @@ export async function submitSolution(input: SubmitSolutionInput): Promise<Soluti
   const submission = await findOwnSubmission(input.assessmentSubmissionId, input.studentId);
   if (submission.completedAt) {
     throw conflict(`Assessment submission ${submission.id} is already completed`);
+  }
+
+  // El temporizador del front es solo visual: el servidor decide si todavía hay tiempo. Un envío
+  // tardío se rechaza sin ejecutarse y el intento se cierra con lo que ya se había enviado.
+  if (await assessmentSubmissionRepository.isPastDeadline(submission.id, DEADLINE_GRACE_SECONDS)) {
+    await closeAttempt(submission.id);
+    throw conflict(`Time limit exceeded: assessment submission ${submission.id} has been closed`);
   }
 
   const belongsToAssessment = await assessmentQuestionRepository.isQuestionInAssessment(
@@ -144,7 +154,7 @@ export async function submitSolution(input: SubmitSolutionInput): Promise<Soluti
 
 /**
  * Cierra el intento y fija el puntaje final. Después de esto ya no se aceptan envíos.
- * Si se acabó el tiempo, el front llama aquí con lo que el estudiante alcanzó a enviar.
+ * Se permite aunque el tiempo haya vencido: así el front cierra el intento al llegar a 0.
  */
 export async function completeAssessment(
   assessmentSubmissionId: number,
@@ -155,12 +165,18 @@ export async function completeAssessment(
     throw conflict(`Assessment submission ${submission.id} is already completed`);
   }
 
-  const attempts = await questionSubmissionRepository.findByAssessmentSubmission(
-    submission.id
-  );
-  const finalScore = sumLatestScorePerQuestion(attempts);
+  return closeAttempt(submission.id);
+}
 
-  return assessmentSubmissionRepository.complete(submission.id, finalScore);
+/** Fija como puntaje final la suma del último envío de cada pregunta y marca el intento como terminado. */
+async function closeAttempt(assessmentSubmissionId: number): Promise<AssessmentSubmission> {
+  const attempts = await questionSubmissionRepository.findByAssessmentSubmission(
+    assessmentSubmissionId
+  );
+  return assessmentSubmissionRepository.complete(
+    assessmentSubmissionId,
+    sumLatestScorePerQuestion(attempts)
+  );
 }
 
 export async function getSubmissionDetail(

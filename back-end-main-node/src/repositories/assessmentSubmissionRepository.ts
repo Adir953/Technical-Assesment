@@ -1,5 +1,5 @@
 import { and, desc, eq, isNull, sql } from 'drizzle-orm';
-import { assessmentSubmissions } from '../models';
+import { assessments, assessmentSubmissions } from '../models';
 import type { AssessmentSubmission, NewAssessmentSubmission } from '../types/submission';
 
 import { db, type DbClient } from '../db';
@@ -36,6 +36,23 @@ export async function findInProgress(
       )
     );
   return submission;
+}
+
+/**
+ * Si ya pasó el tiempo límite del intento (más `graceSeconds`). Compara con el reloj de
+ * PostgreSQL, el mismo que fijó `started_at`, así no influyen el reloj ni la zona horaria del
+ * cliente o del contenedor de la API.
+ */
+export async function isPastDeadline(id: number, graceSeconds: number): Promise<boolean> {
+  const [row] = await db
+    .select({
+      expired: sql<boolean>`LOCALTIMESTAMP > ${assessmentSubmissions.startedAt}
+        + make_interval(mins => ${assessments.durationMinutes}, secs => ${graceSeconds})`,
+    })
+    .from(assessmentSubmissions)
+    .innerJoin(assessments, eq(assessments.id, assessmentSubmissions.assessmentId))
+    .where(eq(assessmentSubmissions.id, id));
+  return row?.expired ?? false;
 }
 
 export async function create(

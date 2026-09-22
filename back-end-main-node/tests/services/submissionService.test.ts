@@ -27,6 +27,7 @@ jest.mock('../../src/repositories', () => ({
     findInProgress: jest.fn(),
     create: jest.fn(),
     complete: jest.fn(),
+    isPastDeadline: jest.fn(),
   },
   questionRepository: { findById: jest.fn() },
   questionSubmissionRepository: { create: jest.fn(), findByAssessmentSubmission: jest.fn() },
@@ -89,6 +90,7 @@ describe('submissionService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.mocked(assessmentSubmissionRepository.findById).mockResolvedValue(submission);
+    jest.mocked(assessmentSubmissionRepository.isPastDeadline).mockResolvedValue(false);
     jest.mocked(assessmentQuestionRepository.isQuestionInAssessment).mockResolvedValue(true);
     jest.mocked(questionRepository.findById).mockResolvedValue(question);
     jest.mocked(testCaseRepository.findByQuestionId).mockResolvedValue(cases);
@@ -146,6 +148,30 @@ describe('submissionService', () => {
       expect(runCode).not.toHaveBeenCalled();
     });
 
+    it('rechaza un envío fuera de tiempo sin ejecutarlo y cierra el intento con lo ya enviado', async () => {
+      jest.mocked(assessmentSubmissionRepository.isPastDeadline).mockResolvedValue(true);
+      jest.mocked(questionSubmissionRepository.findByAssessmentSubmission).mockResolvedValue([
+        attempt(2, 1, 6),
+      ]);
+
+      await expect(submissionService.submitSolution(solution)).rejects.toMatchObject({
+        status: 409,
+        message: expect.stringContaining('Time limit exceeded'),
+      });
+      expect(runCode).not.toHaveBeenCalled();
+      expect(questionSubmissionRepository.create).not.toHaveBeenCalled();
+      expect(assessmentSubmissionRepository.complete).toHaveBeenCalledWith(1, 6);
+    });
+
+    it('consulta el tiempo límite del intento con el margen de gracia', async () => {
+      jest.mocked(runCode).mockResolvedValue({ status: 'SUCCESS', testResults: [] });
+
+      await submissionService.submitSolution(solution);
+
+      expect(assessmentSubmissionRepository.isPastDeadline).toHaveBeenCalledWith(1, 30);
+      expect(runCode).toHaveBeenCalledTimes(1);
+    });
+
     it('rechaza preguntas que no son del assessment', async () => {
       jest.mocked(assessmentQuestionRepository.isQuestionInAssessment).mockResolvedValue(false);
 
@@ -164,6 +190,15 @@ describe('submissionService', () => {
     await submissionService.completeAssessment(1, 3);
 
     expect(assessmentSubmissionRepository.complete).toHaveBeenCalledWith(1, 17);
+  });
+
+  it('completeAssessment se permite aunque el tiempo haya vencido (cierre automático del front)', async () => {
+    jest.mocked(assessmentSubmissionRepository.isPastDeadline).mockResolvedValue(true);
+    jest.mocked(questionSubmissionRepository.findByAssessmentSubmission).mockResolvedValue([]);
+
+    await submissionService.completeAssessment(1, 3);
+
+    expect(assessmentSubmissionRepository.complete).toHaveBeenCalledWith(1, 0);
   });
 
   it('no deja que un estudiante use el intento de otro', async () => {
