@@ -148,6 +148,26 @@ Los runners no publican puertos: solo la API principal puede llamarlos.
 | `docker compose down` | Detener y quitar los contenedores (los datos se conservan) |
 | `docker compose down -v` | Lo mismo y además **borra la base de datos**: al volver a levantar se crea de nuevo con los datos iniciales |
 | `docker compose up -d --build --wait <servicio>` | Reconstruir un solo servicio tras cambiar su código |
+| `docker compose down -v --rmi all` | Eliminar todo lo del proyecto: contenedores, red, base de datos e imágenes (ver abajo) |
+
+### Eliminar todo lo del proyecto
+
+Para dejar el equipo como antes de levantar la plataforma, ejecuta desde la raíz del repositorio:
+
+```bash
+docker compose down -v --rmi all
+```
+
+- `down` detiene y quita los contenedores de todos los servicios y la red que Compose creó para ellos.
+- `-v` borra también los volúmenes del proyecto, es decir, **la base de datos con todo lo que se
+  haya creado** (preguntas, assessments e intentos).
+- `--rmi all` borra las imágenes que usan los servicios: las que se construyeron desde este repositorio
+  (API, front-end y runners) y las descargadas (`postgres` y `adminer`). Si otro proyecto usa esas
+  mismas imágenes descargadas, tendrá que volver a descargarlas.
+
+Después de esto, el siguiente `docker compose up -d --build --wait` vuelve a descargar y construir todo
+desde cero, así que tarda como la primera vez. La caché de construcción de Docker no se borra con este
+comando; si también quieres liberar ese espacio, usa `docker builder prune`.
 
 ### Configuración
 
