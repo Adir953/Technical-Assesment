@@ -10,7 +10,10 @@
     "start": "ng serve --host 0.0.0.0 --proxy-config proxy.conf.json",
     "start:docker": "ng serve --host 0.0.0.0 --poll 2000 --proxy-config proxy.docker.conf.json",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development"
+    "watch": "ng build --watch --configuration development",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
   },
   "dependencies": {
     "@angular/common": "^20.3.0",
@@ -27,6 +30,11 @@
     "@angular/build": "^20.3.0",
     "@angular/cli": "^20.3.0",
     "@angular/compiler-cli": "^20.3.0",
+    "@angular/platform-browser-dynamic": "^20.3.31",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.5.2",
+    "jest-environment-jsdom": "^30.5.2",
+    "jest-preset-angular": "^15.0.3",
     "typescript": "~5.9.2"
   }
 }

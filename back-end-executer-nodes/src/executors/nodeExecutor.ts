@@ -1,7 +1,6 @@
-import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { createWorkDir, evaluateRun, runSandboxed, type TestOutcome } from './sandbox';
 import { checkSyntax } from './syntaxCheck';
 
 interface TestCase {
@@ -32,7 +31,7 @@ export async function executeJavaScript(
   testCases: TestCase[],
   timeoutMs: number = 5000
 ): Promise<ExecutionResult> {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'node-exec-'));
+  const tmpDir = createWorkDir('node-exec-');
   const scriptPath = path.join(tmpDir, 'solution.js');
 
   try {
@@ -142,86 +141,11 @@ async function runSingleTest(
   scriptPath: string,
   testCase: TestCase,
   timeoutMs: number
-): Promise<{
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
-  output?: string;
-  passed: boolean;
-  error?: string;
-}> {
-  return new Promise((resolve) => {
-    if (typeof testCase.expectedOutput !== 'string') {
-      resolve({
-        status: 'RUNTIME_ERROR',
-        passed: false,
-        error: `Invalid test case: expectedOutput is missing or empty`,
-      });
-      return;
-    }
-
-    const process = spawn('node', [scriptPath]);
-
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      process.kill('SIGKILL');
-    }, timeoutMs);
-
-    process.stdin.write(testCase.input || '');
-    process.stdin.end();
-
-    process.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    process.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    process.on('close', (code) => {
-      clearTimeout(timeout);
-
-      if (timedOut) {
-        resolve({
-          status: 'TIME_LIMIT_EXCEEDED',
-          output: stdout,
-          passed: false,
-          error: 'Execution time exceeded',
-        });
-        return;
-      }
-
-      if (code !== 0 && stderr) {
-        resolve({
-          status: 'RUNTIME_ERROR',
-          output: stdout,
-          passed: false,
-          error: stderr.trim(),
-        });
-        return;
-      }
-
-      const trimmedOutput = stdout.trim();
-      const expectedOutput = (testCase.expectedOutput || '').trim();
-      const passed = trimmedOutput === expectedOutput;
-
-      resolve({
-        status: passed ? 'SUCCESS' : 'WRONG_ANSWER',
-        output: trimmedOutput,
-        passed,
-        error: passed ? undefined : `Expected: ${expectedOutput}, Got: ${trimmedOutput}`,
-      });
-    });
-
-    process.on('error', (err) => {
-      clearTimeout(timeout);
-      resolve({
-        status: 'RUNTIME_ERROR',
-        passed: false,
-        error: err.message,
-      });
-    });
+): Promise<TestOutcome> {
+  const run = await runSandboxed('node', ['--max-old-space-size=128', scriptPath], {
+    cwd: path.dirname(scriptPath),
+    timeoutMs,
+    input: testCase.input || '',
   });
+  return evaluateRun(run, testCase.expectedOutput);
 }

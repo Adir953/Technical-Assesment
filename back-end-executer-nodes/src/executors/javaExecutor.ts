@@ -1,7 +1,7 @@
 import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
+import { createWorkDir, evaluateRun, runSandboxed, type TestOutcome } from './sandbox';
 
 interface TestCase {
   input: string;
@@ -26,7 +26,8 @@ interface ExecutionResult {
 }
 
 // Faster JVM startup: every test case starts a new JVM within the same time limit.
-const JVM_FLAGS = ['-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1'];
+// The heap is capped, and UsePerfData is off because the sandbox user cannot write to /tmp.
+const JVM_FLAGS = ['-XX:+UseSerialGC', '-XX:TieredStopAtLevel=1', '-XX:-UsePerfData', '-Xmx256m'];
 
 export async function executeJava(
   userCode: string,
@@ -34,7 +35,7 @@ export async function executeJava(
   testCases: TestCase[],
   timeoutMs: number = 5000
 ): Promise<ExecutionResult> {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'java-exec-'));
+  const tmpDir = createWorkDir('java-exec-');
 
   try {
     const signature = parseSignature(templateCode);
@@ -271,83 +272,10 @@ async function runSingleTest(
   index: number,
   testCase: TestCase,
   timeoutMs: number
-): Promise<{
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
-  output?: string;
-  passed: boolean;
-  error?: string;
-}> {
-  return new Promise((resolve) => {
-    if (typeof testCase.expectedOutput !== 'string') {
-      resolve({
-        status: 'RUNTIME_ERROR',
-        passed: false,
-        error: `Invalid test case: expectedOutput is missing or empty`,
-      });
-      return;
-    }
-
-    const process = spawn('java', [...JVM_FLAGS, '-cp', tmpDir, 'Main', String(index)]);
-
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      process.kill('SIGKILL');
-    }, timeoutMs);
-
-    process.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    process.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    process.on('close', (code) => {
-      clearTimeout(timeout);
-
-      if (timedOut) {
-        resolve({
-          status: 'TIME_LIMIT_EXCEEDED',
-          output: stdout,
-          passed: false,
-          error: 'Execution time exceeded',
-        });
-        return;
-      }
-
-      if (code !== 0) {
-        resolve({
-          status: 'RUNTIME_ERROR',
-          output: stdout,
-          passed: false,
-          error: stderr.trim() || `Process exited with code ${code}`,
-        });
-        return;
-      }
-
-      const trimmedOutput = stdout.trim();
-      const expectedOutput = testCase.expectedOutput.trim();
-      const passed = trimmedOutput === expectedOutput;
-
-      resolve({
-        status: passed ? 'SUCCESS' : 'WRONG_ANSWER',
-        output: trimmedOutput,
-        passed,
-        error: passed ? undefined : `Expected: ${expectedOutput}, Got: ${trimmedOutput}`,
-      });
-    });
-
-    process.on('error', (err) => {
-      clearTimeout(timeout);
-      resolve({
-        status: 'RUNTIME_ERROR',
-        passed: false,
-        error: err.message,
-      });
-    });
+): Promise<TestOutcome> {
+  const run = await runSandboxed('java', [...JVM_FLAGS, '-cp', tmpDir, 'Main', String(index)], {
+    cwd: tmpDir,
+    timeoutMs,
   });
+  return evaluateRun(run, testCase.expectedOutput);
 }

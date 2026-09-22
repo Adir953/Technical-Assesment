@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import dotenv from 'dotenv';
 import { executePython } from './executors/pythonExecutor';
 import { executeJavaScript } from './executors/nodeExecutor';
@@ -25,9 +24,17 @@ function canonicalJson(value: unknown): unknown {
   }
 }
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(cors());
+// Only backend-api calls the runner (no browser, so no CORS), and a submission is small.
+app.use(express.json({ limit: '1mb' }));
+
+// One execution at a time: after each process the sandbox user's leftover processes are killed,
+// which is only safe while no other execution is running. Scale by adding runner replicas.
+let queue: Promise<unknown> = Promise.resolve();
+function enqueue<T>(task: () => Promise<T>): Promise<T> {
+  const result = queue.then(task);
+  queue = result.catch(() => undefined);
+  return result;
+}
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', runtime: RUNTIME });
@@ -53,11 +60,11 @@ app.post('/run', async (req, res) => {
 
     let result;
     if (RUNTIME === 'python') {
-      result = await executePython(code, templateCode, testCases, timeoutMs);
+      result = await enqueue(() => executePython(code, templateCode, testCases, timeoutMs));
     } else if (RUNTIME === 'node') {
-      result = await executeJavaScript(code, templateCode, testCases, timeoutMs);
+      result = await enqueue(() => executeJavaScript(code, templateCode, testCases, timeoutMs));
     } else if (RUNTIME === 'java') {
-      result = await executeJava(code, templateCode, testCases, timeoutMs);
+      result = await enqueue(() => executeJava(code, templateCode, testCases, timeoutMs));
     } else {
       return res.status(400).json({
         status: 'RUNTIME_ERROR',

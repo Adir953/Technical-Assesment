@@ -1,0 +1,97 @@
+import {
+  formatDuration,
+  isApproved,
+  latestByQuestion,
+  questionRows,
+  questionState,
+  scorePercent,
+} from './grading';
+import type { AssessmentDetail, AssessmentSubmission, QuestionSubmission, SubmissionDetail } from './models';
+
+function attempt(id: number, questionId: number, score: number): QuestionSubmission {
+  return {
+    id,
+    assessmentSubmissionId: 1,
+    questionId,
+    studentCode: '',
+    programmingLanguage: 'javascript',
+    score,
+    passedTests: 0,
+    totalTests: 5,
+    compilationError: null,
+    executionOutput: null,
+    submittedAt: null,
+  };
+}
+
+function submission(finalScore: number | null, total: number): AssessmentSubmission {
+  return {
+    id: 1,
+    studentId: 8,
+    assessmentId: 1,
+    finalScore,
+    totalPossiblePoints: total,
+    startedAt: null,
+    completedAt: null,
+  };
+}
+
+describe('grading', () => {
+  describe('questionState', () => {
+    it('marca como pendiente una pregunta sin envíos', () => {
+      expect(questionState(undefined, 10)).toBe('pending');
+    });
+
+    it('distingue correcta, parcial e incorrecta según el puntaje', () => {
+      expect(questionState({ score: 10 }, 10)).toBe('correct');
+      expect(questionState({ score: 4 }, 10)).toBe('partial');
+      expect(questionState({ score: 0 }, 10)).toBe('incorrect');
+    });
+  });
+
+  it('latestByQuestion se queda con el envío más reciente de cada pregunta', () => {
+    // El backend devuelve los envíos del más reciente al más antiguo.
+    const detail = {
+      ...submission(null, 20),
+      questionSubmissions: [attempt(3, 1, 10), attempt(2, 2, 5), attempt(1, 1, 0)],
+    } as SubmissionDetail;
+
+    const latest = latestByQuestion(detail);
+
+    expect(latest.get(1)?.id).toBe(3);
+    expect(latest.get(2)?.id).toBe(2);
+  });
+
+  it('questionRows ordena las preguntas y les asigna su estado', () => {
+    const detail = { ...submission(null, 20), questionSubmissions: [attempt(1, 2, 10)] } as SubmissionDetail;
+    const assessment = {
+      questions: [
+        { id: 2, title: 'Invertir cadena', points: 10, questionOrder: 2 },
+        { id: 1, title: 'Máximo', points: 10, questionOrder: 1 },
+      ],
+    } as AssessmentDetail;
+
+    const rows = questionRows(detail, assessment);
+
+    expect(rows.map((r) => r.question.id)).toEqual([1, 2]);
+    expect(rows.map((r) => r.state)).toEqual(['pending', 'correct']);
+  });
+
+  describe('aprobación', () => {
+    it('aprueba desde el 60 % del puntaje total', () => {
+      expect(scorePercent(submission(16, 25))).toBe(64);
+      expect(isApproved(submission(16, 25))).toBe(true);
+      expect(isApproved(submission(14, 25))).toBe(false);
+    });
+
+    it('no falla cuando el assessment no tiene puntaje total', () => {
+      expect(scorePercent(submission(null, 0))).toBe(0);
+    });
+  });
+
+  it('formatDuration muestra horas solo cuando hacen falta', () => {
+    expect(formatDuration(65_000)).toBe('01:05');
+    expect(formatDuration(3_725_000)).toBe('1:02:05');
+    expect(formatDuration(-5_000)).toBe('00:00');
+  });
+});
