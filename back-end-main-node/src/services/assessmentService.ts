@@ -5,7 +5,6 @@ import {
   questionRepository,
 } from '../repositories';
 import { notFound, badRequest } from '../middleware/errorHandler';
-import { requireRole } from './userService';
 import type { Assessment, CreateAssessmentInput, AssessmentDetail } from '../types/assessment';
 
 export { type Assessment, type CreateAssessmentInput, type AssessmentDetail };
@@ -37,8 +36,6 @@ export async function createAssessment(
   if (questionIds.length === 0) {
     throw badRequest('questionIds must contain at least one question');
   }
-
-  await requireRole(input.createdBy, 'admin');
 
   const found = await questionRepository.findByIds(questionIds);
   if (found.length !== questionIds.length) {

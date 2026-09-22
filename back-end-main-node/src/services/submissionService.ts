@@ -9,8 +9,7 @@ import {
   testCaseResultRepository,
 } from '../repositories';
 import { runCode } from '../clients/runnerClient';
-import { badRequest, conflict, notFound } from '../middleware/errorHandler';
-import { requireRole } from './userService';
+import { badRequest, conflict, forbidden, notFound } from '../middleware/errorHandler';
 import { requireStarterCode } from './questionService';
 import type {
   AssessmentSubmission,
@@ -26,7 +25,6 @@ import type { ExecutionResult } from '../types/execution';
 export { type SubmitSolutionInput, type SolutionResult, type SubmissionDetail };
 
 export async function listByStudent(studentId: number): Promise<AssessmentSubmission[]> {
-  await requireRole(studentId, 'student');
   return assessmentSubmissionRepository.findByStudent(studentId);
 }
 
@@ -38,8 +36,6 @@ export async function startAssessment(
   studentId: number,
   assessmentId: number
 ): Promise<AssessmentSubmission> {
-  await requireRole(studentId, 'student');
-
   const assessment = await assessmentRepository.findById(assessmentId);
   if (!assessment) {
     throw notFound(`Assessment ${assessmentId} not found`);
@@ -72,12 +68,7 @@ export async function startAssessment(
  * en una sola transacción. Se permiten varios envíos por pregunta; cuenta el último.
  */
 export async function submitSolution(input: SubmitSolutionInput): Promise<SolutionResult> {
-  const submission = await assessmentSubmissionRepository.findById(
-    input.assessmentSubmissionId
-  );
-  if (!submission) {
-    throw notFound(`Assessment submission ${input.assessmentSubmissionId} not found`);
-  }
+  const submission = await findOwnSubmission(input.assessmentSubmissionId, input.studentId);
   if (submission.completedAt) {
     throw conflict(`Assessment submission ${submission.id} is already completed`);
   }
@@ -156,12 +147,10 @@ export async function submitSolution(input: SubmitSolutionInput): Promise<Soluti
  * Si se acabó el tiempo, el front llama aquí con lo que el estudiante alcanzó a enviar.
  */
 export async function completeAssessment(
-  assessmentSubmissionId: number
+  assessmentSubmissionId: number,
+  studentId: number
 ): Promise<AssessmentSubmission> {
-  const submission = await assessmentSubmissionRepository.findById(assessmentSubmissionId);
-  if (!submission) {
-    throw notFound(`Assessment submission ${assessmentSubmissionId} not found`);
-  }
+  const submission = await findOwnSubmission(assessmentSubmissionId, studentId);
   if (submission.completedAt) {
     throw conflict(`Assessment submission ${submission.id} is already completed`);
   }
@@ -174,11 +163,11 @@ export async function completeAssessment(
   return assessmentSubmissionRepository.complete(submission.id, finalScore);
 }
 
-export async function getSubmissionDetail(assessmentSubmissionId: number): Promise<SubmissionDetail> {
-  const submission = await assessmentSubmissionRepository.findById(assessmentSubmissionId);
-  if (!submission) {
-    throw notFound(`Assessment submission ${assessmentSubmissionId} not found`);
-  }
+export async function getSubmissionDetail(
+  assessmentSubmissionId: number,
+  studentId: number
+): Promise<SubmissionDetail> {
+  const submission = await findOwnSubmission(assessmentSubmissionId, studentId);
 
   const attempts = await questionSubmissionRepository.findByAssessmentSubmission(
     submission.id
@@ -192,6 +181,21 @@ export async function getSubmissionDetail(assessmentSubmissionId: number): Promi
   );
 
   return { ...submission, questionSubmissions: detailed };
+}
+
+/** Un estudiante solo puede ver o modificar sus propios intentos. */
+async function findOwnSubmission(
+  assessmentSubmissionId: number,
+  studentId: number
+): Promise<AssessmentSubmission> {
+  const submission = await assessmentSubmissionRepository.findById(assessmentSubmissionId);
+  if (!submission) {
+    throw notFound(`Assessment submission ${assessmentSubmissionId} not found`);
+  }
+  if (submission.studentId !== studentId) {
+    throw forbidden(`Assessment submission ${assessmentSubmissionId} belongs to another student`);
+  }
+  return submission;
 }
 
 // El runner responde los resultados en el mismo orden en que recibió los casos. Si no hay

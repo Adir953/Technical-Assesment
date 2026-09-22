@@ -10,8 +10,9 @@ jest.mock('../../src/services/questionService', () => ({
   runQuestion: jest.fn(),
 }));
 
+const admin = { id: 1, role: 'admin' as const };
+
 const body = {
-  createdBy: 1,
   title: 'Suma números pares',
   description: 'Retorna la suma de los números pares del arreglo.',
   points: '15',
@@ -28,12 +29,13 @@ describe('questionController', () => {
   describe('createQuestion', () => {
     it('crea la pregunta y deja visibles los casos por defecto', async () => {
       jest.mocked(questionService.createQuestion).mockResolvedValue({ id: 4 } as QuestionDetail);
-      const { req, res, next } = mockHttp({ body });
+      const { req, res, next } = mockHttp({ body, user: admin });
 
       await createQuestion(req, res, next);
 
       expect(questionService.createQuestion).toHaveBeenCalledWith(
         expect.objectContaining({
+          createdBy: 1,
           points: 15,
           starterCodes: { python: 'def sum_even_numbers(arr):\n    pass\n' },
           testCases: [
@@ -48,6 +50,7 @@ describe('questionController', () => {
     it('rechaza código inicial de un lenguaje no soportado', async () => {
       const { req, res, next } = mockHttp({
         body: { ...body, starterCodes: { ruby: 'def sum_even_numbers(arr)\nend' } },
+        user: admin,
       });
 
       await createQuestion(req, res, next);
@@ -59,7 +62,7 @@ describe('questionController', () => {
     });
 
     it('rechaza testCases que no son un arreglo', async () => {
-      const { req, res, next } = mockHttp({ body: { ...body, testCases: 'nada' } });
+      const { req, res, next } = mockHttp({ body: { ...body, testCases: 'nada' }, user: admin });
 
       await createQuestion(req, res, next);
 

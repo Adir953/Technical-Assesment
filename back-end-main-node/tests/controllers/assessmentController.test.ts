@@ -25,10 +25,12 @@ const assessment: AssessmentDetail = {
 describe('assessmentController', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('createAssessment convierte los datos del body y responde 201', async () => {
+  it('createAssessment toma el autor de la sesión y responde 201', async () => {
     jest.mocked(assessmentService.createAssessment).mockResolvedValue(assessment);
     const { req, res, next } = mockHttp({
-      body: { createdBy: '1', title: 'Assessment Java', durationMinutes: '45', questionIds: [1, '3'] },
+      // Un createdBy en el body se ignora: el autor es siempre el usuario de la sesión.
+      body: { createdBy: '99', title: 'Assessment Java', durationMinutes: '45', questionIds: [1, '3'] },
+      user: { id: 1, role: 'admin' },
     });
 
     await createAssessment(req, res, next);

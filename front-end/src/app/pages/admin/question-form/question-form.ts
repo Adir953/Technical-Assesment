@@ -1,7 +1,6 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, errorMessage } from '../../../core/api.service';
-import { SessionService } from '../../../core/session.service';
 import type { ProgrammingLanguage, QuestionDetail } from '../../../core/models';
 import { LANGUAGES } from '../../../core/languages';
 
@@ -40,7 +39,6 @@ export class QuestionForm {
   readonly cancelled = output<void>();
 
   private readonly api = inject(ApiService);
-  private readonly session = inject(SessionService);
 
   protected readonly languages = LANGUAGES;
   protected readonly title = signal('');
@@ -103,15 +101,13 @@ export class QuestionForm {
   async save(event: Event) {
     event.preventDefault();
     this.submitted.set(true);
-    const user = this.session.user();
-    if (this.problems().length || !user) return;
+    if (this.problems().length) return;
 
     this.saving.set(true);
     this.error.set(null);
     try {
       const question = await firstValueFrom(
         this.api.createQuestion({
-          createdBy: user.id,
           title: this.title().trim(),
           description: this.description().trim(),
           points: this.points(),

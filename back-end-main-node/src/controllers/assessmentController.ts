@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import * as assessmentService from '../services/assessmentService';import { optionalString, parseId, parseIdList, requireString } from '../utils/validation';
+import * as assessmentService from '../services/assessmentService';
+import { optionalString, parseId, parseIdList, requireString } from '../utils/validation';
 
 export async function listAssessments(_req: Request, res: Response, next: NextFunction) {
   try {
@@ -22,10 +23,10 @@ export async function getAssessment(req: Request, res: Response, next: NextFunct
 
 export async function createAssessment(req: Request, res: Response, next: NextFunction) {
   try {
-    const { createdBy, title, description, durationMinutes, questionIds } = req.body;
+    const { title, description, durationMinutes, questionIds } = req.body;
 
     const assessment = await assessmentService.createAssessment({
-      createdBy: parseId(createdBy, 'createdBy'),
+      createdBy: req.user!.id,
       title: requireString(title, 'title'),
       description: optionalString(description, 'description'),
       durationMinutes: parseId(durationMinutes, 'durationMinutes'),

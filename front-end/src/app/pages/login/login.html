@@ -1,23 +1,11 @@
 <section class="card narrow">
   <h1>Iniciar sesión</h1>
-  <p class="muted">Ingresa con tu usuario y elige tu perfil.</p>
+  <p class="muted">Ingresa con tu usuario y contraseña.</p>
 
   <form class="login-form" (submit)="submit($event)">
-    <fieldset class="role-toggle">
-      <legend>Perfil</legend>
-      <label [class.active]="role() === 'student'">
-        <input type="radio" name="role" value="student" [checked]="role() === 'student'" (change)="role.set('student')" />
-        Estudiante
-      </label>
-      <label [class.active]="role() === 'admin'">
-        <input type="radio" name="role" value="admin" [checked]="role() === 'admin'" (change)="role.set('admin')" />
-        Evaluador
-      </label>
-    </fieldset>
-
     <label class="field">
       Usuario
-      <input name="username" autocomplete="username" required
+      <input name="username" autocomplete="username" required autofocus
              [value]="username()" (input)="username.set($any($event.target).value)" />
     </label>
     <label class="field">
@@ -35,5 +23,7 @@
     </button>
   </form>
 
-  <p class="muted hint">Cuentas de prueba: <code>estudiante / estudiante</code> · <code>admin / admin</code></p>
+  <p class="muted hint">
+    Cuentas de prueba: <code>usuario / usuario</code> · <code>estudiante / estudiante</code> · <code>admin / admin</code>
+  </p>
 </section>

@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import * as questionService from '../services/questionService';
-import { badRequest } from '../middleware/errorHandler';import {
+import { badRequest } from '../middleware/errorHandler';
+import {
   parseId,
   parseLanguage,
   requireString,
@@ -27,7 +28,7 @@ export async function getQuestion(req: Request, res: Response, next: NextFunctio
 
 export async function createQuestion(req: Request, res: Response, next: NextFunction) {
   try {
-    const { createdBy, title, description, points, starterCodes, testCases } = req.body;
+    const { title, description, points, starterCodes, testCases } = req.body;
 
     if (!Array.isArray(testCases)) {
       throw badRequest('testCases must be an array');
@@ -37,7 +38,7 @@ export async function createQuestion(req: Request, res: Response, next: NextFunc
     }
 
     const question = await questionService.createQuestion({
-      createdBy: parseId(createdBy, 'createdBy'),
+      createdBy: req.user!.id,
       title: requireString(title, 'title'),
       description: requireString(description, 'description'),
       points: parseId(points, 'points'),

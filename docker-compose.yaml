@@ -102,6 +102,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:-postgres}
       NODE_ENV: ${NODE_ENV:-development}
       PORT: 3000
+      # Firma de los JWT de sesión. Defínelo en .env para cualquier despliegue real.
+      JWT_SECRET: ${JWT_SECRET:-dev-only-secret-change-me}
       PYTHON_RUNNER_URL: http://python-runner:8000/run
       NODE_RUNNER_URL: http://node-runner:8000/run
       JAVA_RUNNER_URL: http://java-runner:8000/run

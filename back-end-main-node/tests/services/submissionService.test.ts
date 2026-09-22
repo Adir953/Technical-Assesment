@@ -35,7 +35,6 @@ jest.mock('../../src/repositories', () => ({
 }));
 
 jest.mock('../../src/clients/runnerClient', () => ({ runCode: jest.fn() }));
-jest.mock('../../src/services/userService', () => ({ requireRole: jest.fn() }));
 jest.mock('../../src/services/questionService', () => ({
   requireStarterCode: jest.fn().mockResolvedValue('function findMax(arr) {\n}\n'),
 }));
@@ -84,7 +83,7 @@ function attempt(id: number, questionId: number, score: number): QuestionSubmiss
   };
 }
 
-const solution = { assessmentSubmissionId: 1, questionId: 1, code: 'function findMax() {}', language: 'javascript' as const };
+const solution = { assessmentSubmissionId: 1, studentId: 3, questionId: 1, code: 'function findMax() {}', language: 'javascript' as const };
 
 describe('submissionService', () => {
   beforeEach(() => {
@@ -162,9 +161,17 @@ describe('submissionService', () => {
       attempt(1, 1, 4),
     ]);
 
-    await submissionService.completeAssessment(1);
+    await submissionService.completeAssessment(1, 3);
 
     expect(assessmentSubmissionRepository.complete).toHaveBeenCalledWith(1, 17);
+  });
+
+  it('no deja que un estudiante use el intento de otro', async () => {
+    await expect(submissionService.getSubmissionDetail(1, 4)).rejects.toMatchObject({ status: 403 });
+    await expect(submissionService.submitSolution({ ...solution, studentId: 4 })).rejects.toMatchObject({
+      status: 403,
+    });
+    expect(runCode).not.toHaveBeenCalled();
   });
 
   it('startAssessment no deja abrir dos intentos del mismo assessment', async () => {

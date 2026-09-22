@@ -14,7 +14,7 @@ import type {
   SolutionResult,
   SubmissionDetail,
 } from './models';
-import type { SessionUser, UserRole } from './session.service';
+import type { SessionUser } from './session.service';
 
 // Rutas relativas: en desarrollo las resuelve el proxy de `ng serve`,
 // y en el contenedor las reenvía nginx al servicio `backend-api`.
@@ -24,8 +24,17 @@ const API = '/api';
 export class ApiService {
   private readonly http = inject(HttpClient);
 
-  login(username: string, password: string, role: UserRole) {
-    return this.http.post<SessionUser>(`${API}/auth/login`, { username, password, role });
+  /** Si las credenciales son válidas, el backend deja el JWT en una cookie httpOnly. */
+  login(username: string, password: string) {
+    return this.http.post<SessionUser>(`${API}/auth/login`, { username, password });
+  }
+
+  me() {
+    return this.http.get<SessionUser>(`${API}/auth/me`);
+  }
+
+  logout() {
+    return this.http.post<void>(`${API}/auth/logout`, {});
   }
 
   listAssessments() {
@@ -56,19 +65,19 @@ export class ApiService {
     return this.http.post<ExecutionResult>(`${API}/questions/${id}/run`, { code, language });
   }
 
-  /** Intentos del estudiante, del más reciente al más antiguo. */
-  listSubmissions(studentId: number) {
-    return this.http.get<AssessmentSubmission[]>(`${API}/submissions`, { params: { studentId } });
+  /** Intentos del estudiante de la sesión, del más reciente al más antiguo. */
+  listSubmissions() {
+    return this.http.get<AssessmentSubmission[]>(`${API}/submissions`);
   }
 
-  startAssessment(studentId: number, assessmentId: number) {
-    return this.http.post<AssessmentSubmission>(`${API}/submissions`, { studentId, assessmentId });
+  startAssessment(assessmentId: number) {
+    return this.http.post<AssessmentSubmission>(`${API}/submissions`, { assessmentId });
   }
 
   /** Crea un intento nuevo; si ya hay uno en curso (409), devuelve el id de ese intento. */
-  async startOrResume(studentId: number, assessmentId: number): Promise<number> {
+  async startOrResume(assessmentId: number): Promise<number> {
     try {
-      return (await firstValueFrom(this.startAssessment(studentId, assessmentId))).id;
+      return (await firstValueFrom(this.startAssessment(assessmentId))).id;
     } catch (err) {
       // 409: "Student X already has attempt N in progress for this assessment"
       const match =

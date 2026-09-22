@@ -114,7 +114,6 @@ export interface ExecutionResult {
 }
 
 export interface CreateQuestionInput {
-  createdBy: number;
   title: string;
   description: string;
   points: number;
@@ -124,7 +123,6 @@ export interface CreateQuestionInput {
 }
 
 export interface CreateAssessmentInput {
-  createdBy: number;
   title: string;
   description?: string;
   durationMinutes: number;

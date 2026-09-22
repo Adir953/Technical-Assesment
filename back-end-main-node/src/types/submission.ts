@@ -24,6 +24,7 @@ export interface SubmissionDetail extends AssessmentSubmission {
 
 export interface SubmitSolutionInput {
   assessmentSubmissionId: number;
+  studentId: number;
   questionId: number;
   code: string;
   language: ProgrammingLanguage;

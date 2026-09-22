@@ -19,17 +19,17 @@ describe('ApiService.startOrResume', () => {
   afterEach(() => http.verify());
 
   it('crea un intento nuevo y devuelve su id', async () => {
-    const result = api.startOrResume(8, 1);
+    const result = api.startOrResume(1);
 
     const req = http.expectOne('/api/submissions');
-    expect(req.request.body).toEqual({ studentId: 8, assessmentId: 1 });
+    expect(req.request.body).toEqual({ assessmentId: 1 });
     req.flush({ id: 15 });
 
     expect(await result).toBe(15);
   });
 
   it('retoma el intento en curso cuando el backend responde 409', async () => {
-    const result = api.startOrResume(8, 1);
+    const result = api.startOrResume(1);
 
     http.expectOne('/api/submissions').flush(
       { error: { status: 409, message: 'Student 8 already has attempt 12 in progress for this assessment' } },
@@ -40,7 +40,7 @@ describe('ApiService.startOrResume', () => {
   });
 
   it('propaga cualquier otro error', async () => {
-    const result = api.startOrResume(8, 99);
+    const result = api.startOrResume(99);
 
     http.expectOne('/api/submissions').flush(
       { error: { status: 404, message: 'Assessment 99 not found' } },

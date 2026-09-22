@@ -12,8 +12,8 @@ export class App {
   protected readonly session = inject(SessionService);
   private readonly router = inject(Router);
 
-  logout() {
-    this.session.logout();
-    this.router.navigate(['/login']);
+  async logout() {
+    await this.session.logout();
+    await this.router.navigate(['/login']);
   }
 }

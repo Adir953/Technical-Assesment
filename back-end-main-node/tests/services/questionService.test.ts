@@ -13,7 +13,6 @@ jest.mock('../../src/repositories', () => ({
   testCaseRepository: { findVisibleByQuestionId: jest.fn() },
 }));
 jest.mock('../../src/clients/runnerClient', () => ({ runCode: jest.fn() }));
-jest.mock('../../src/services/userService', () => ({ requireRole: jest.fn() }));
 
 describe('questionService.runQuestion', () => {
   beforeEach(() => {

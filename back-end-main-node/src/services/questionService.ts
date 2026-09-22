@@ -6,7 +6,6 @@ import {
 } from '../repositories';
 import { runCode } from '../clients/runnerClient';
 import { notFound, badRequest } from '../middleware/errorHandler';
-import { requireRole } from './userService';
 import type {
   Question,
   QuestionDetail,
@@ -50,8 +49,6 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Questi
   if (languages.length === 0) {
     throw badRequest('A question needs starter code for at least one language');
   }
-
-  await requireRole(input.createdBy, 'admin');
 
   return db.transaction(async (tx) => {
     const question = await questionRepository.create(
