@@ -29,4 +29,4 @@ HEALTHCHECK --interval=10s --timeout=5s --retries=3 --start-period=20s \
 
 # El servidor corre como root solo para poder lanzar procesos como el usuario sandbox;
 # docker-compose le quita todas las capabilities excepto SETUID, SETGID y KILL.
-CMD ["node", "dist/runner.js"]
+CMD ["node", "dist/server.js"]
