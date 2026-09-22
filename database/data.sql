@@ -19,6 +19,7 @@ INSERT INTO users (name, email, password_hash, role) VALUES
 -- Cuentas de acceso a la plataforma (credenciales de demostración, no son secretos):
 --   admin / admin            → evaluador
 --   estudiante / estudiante  → estudiante
+--   usuario / usuario        → estudiante
 -- Formato del hash: scrypt$<salt hex>$<hash hex> (crypto.scryptSync, keylen 64).
 INSERT INTO users (name, username, email, password_hash, role) VALUES
 ('Administrador', 'admin', 'admin@example.com',
@@ -26,6 +27,9 @@ INSERT INTO users (name, username, email, password_hash, role) VALUES
  'admin'),
 ('Estudiante Demo', 'estudiante', 'estudiante@example.com',
  'scrypt$695adc8b29ce4b38e7b949c1b678ed33$f3d0548c19a53aa7e8c0dd436dbf3b8d064f18e838260d4bba254f6b77c3e8b836a049a404230be6c06dfcd54b282c812cb672dc64f2c61a0626674d0db72c67',
+ 'student'),
+('Usuario de Prueba', 'usuario', 'usuario@example.com',
+ 'scrypt$233f3c1fc5fac98f08e8692985e7e72d$263aeecc134cd54e0b0c5622014ddd568fbfcdc52f548047611b09792f743cdbd9457630b45027728dfd081df4db4ee545bf2f62f1d88cdab79b099d3da6e18f',
  'student');
 
 -- ==============================================================================

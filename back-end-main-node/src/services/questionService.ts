@@ -6,7 +6,6 @@ import {
 } from '../repositories';
 import { runCode } from '../clients/runnerClient';
 import { notFound, badRequest } from '../middleware/errorHandler';
-import { requireRole } from './userService';
 import type {
   Question,
   QuestionDetail,
@@ -22,6 +21,10 @@ export async function listQuestions(): Promise<Question[]> {
   return questionRepository.findAll();
 }
 
+/**
+ * Detalle de una pregunta para el editor. Solo incluye los casos visibles; los ocultos nunca
+ * salen del backend para que el estudiante no pueda ajustar su código a ellos.
+ */
 export async function getQuestion(id: number): Promise<QuestionDetail> {
   const question = await questionRepository.findById(id);
   if (!question) {
@@ -34,6 +37,10 @@ export async function getQuestion(id: number): Promise<QuestionDetail> {
   return { ...question, starterCodes: toStarterCodes(starterCodes), testCases: visibleCases };
 }
 
+/**
+ * Crea la pregunta con su código inicial y sus casos de prueba en una transacción.
+ * Los lenguajes que traen código inicial son los únicos permitidos para resolverla.
+ */
 export async function createQuestion(input: CreateQuestionInput): Promise<QuestionDetail> {
   if (input.testCases.length === 0) {
     throw badRequest('A question needs at least one test case');
@@ -42,8 +49,6 @@ export async function createQuestion(input: CreateQuestionInput): Promise<Questi
   if (languages.length === 0) {
     throw badRequest('A question needs starter code for at least one language');
   }
-
-  await requireRole(input.createdBy, 'admin');
 
   return db.transaction(async (tx) => {
     const question = await questionRepository.create(
@@ -106,6 +111,10 @@ export async function runQuestion(id: number, code: string, language: Programmin
   });
 }
 
+/**
+ * Código inicial de la pregunta en ese lenguaje. El runner lo usa para saber qué función
+ * llamar; si no existe, el lenguaje no está permitido (400).
+ */
 export async function requireStarterCode(
   questionId: number,
   language: ProgrammingLanguage

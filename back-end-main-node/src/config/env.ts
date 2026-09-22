@@ -12,6 +12,11 @@ export const env = {
     user: process.env.DB_USER ?? 'postgres',
     password: process.env.DB_PASSWORD ?? 'postgres',
   },
+  auth: {
+    // En producción debe venir de JWT_SECRET; el valor por defecto solo sirve para desarrollo.
+    jwtSecret: process.env.JWT_SECRET ?? 'dev-only-secret-change-me',
+    sessionHours: Number(process.env.SESSION_HOURS ?? 8),
+  },
   runners: {
     python: process.env.PYTHON_RUNNER_URL ?? 'http://python-runner:8000/run',
     javascript: process.env.NODE_RUNNER_URL ?? 'http://node-runner:8000/run',

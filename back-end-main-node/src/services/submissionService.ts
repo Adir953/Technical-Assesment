@@ -9,8 +9,7 @@ import {
   testCaseResultRepository,
 } from '../repositories';
 import { runCode } from '../clients/runnerClient';
-import { badRequest, conflict, notFound } from '../middleware/errorHandler';
-import { requireRole } from './userService';
+import { badRequest, conflict, forbidden, notFound } from '../middleware/errorHandler';
 import { requireStarterCode } from './questionService';
 import type {
   AssessmentSubmission,
@@ -21,20 +20,25 @@ import type {
   QuestionSubmissionWithQuestion,
 } from '../types/submission';
 import type { TestCase } from '../types/question';
+import type { ExecutionResult } from '../types/execution';
 
 export { type SubmitSolutionInput, type SolutionResult, type SubmissionDetail };
 
+// Margen sobre el tiempo límite para un envío hecho en los últimos segundos que tarda en llegar.
+const DEADLINE_GRACE_SECONDS = 30;
+
 export async function listByStudent(studentId: number): Promise<AssessmentSubmission[]> {
-  await requireRole(studentId, 'student');
   return assessmentSubmissionRepository.findByStudent(studentId);
 }
 
+/**
+ * Abre un intento nuevo. Un estudiante solo puede tener un intento en curso por assessment
+ * (409 si ya existe). Los puntos posibles quedan guardados en el intento desde el inicio.
+ */
 export async function startAssessment(
   studentId: number,
   assessmentId: number
 ): Promise<AssessmentSubmission> {
-  await requireRole(studentId, 'student');
-
   const assessment = await assessmentRepository.findById(assessmentId);
   if (!assessment) {
     throw notFound(`Assessment ${assessmentId} not found`);
@@ -60,15 +64,23 @@ export async function startAssessment(
   });
 }
 
+/**
+ * Califica la respuesta de una pregunta. A diferencia de "Ejecutar", corre todos los casos,
+ * incluidos los ocultos, y el puntaje es proporcional a los casos aprobados
+ * (4 de 5 en una pregunta de 10 puntos = 8). El envío y el resultado de cada caso se guardan
+ * en una sola transacción. Se permiten varios envíos por pregunta; cuenta el último.
+ */
 export async function submitSolution(input: SubmitSolutionInput): Promise<SolutionResult> {
-  const submission = await assessmentSubmissionRepository.findById(
-    input.assessmentSubmissionId
-  );
-  if (!submission) {
-    throw notFound(`Assessment submission ${input.assessmentSubmissionId} not found`);
-  }
+  const submission = await findOwnSubmission(input.assessmentSubmissionId, input.studentId);
   if (submission.completedAt) {
     throw conflict(`Assessment submission ${submission.id} is already completed`);
+  }
+
+  // El temporizador del front es solo visual: el servidor decide si todavía hay tiempo. Un envío
+  // tardío se rechaza sin ejecutarse y el intento se cierra con lo que ya se había enviado.
+  if (await assessmentSubmissionRepository.isPastDeadline(submission.id, DEADLINE_GRACE_SECONDS)) {
+    await closeAttempt(submission.id);
+    throw conflict(`Time limit exceeded: assessment submission ${submission.id} has been closed`);
   }
 
   const belongsToAssessment = await assessmentQuestionRepository.isQuestionInAssessment(
@@ -140,30 +152,38 @@ export async function submitSolution(input: SubmitSolutionInput): Promise<Soluti
   return { questionSubmission, status: execution.status, testCaseResults };
 }
 
+/**
+ * Cierra el intento y fija el puntaje final. Después de esto ya no se aceptan envíos.
+ * Se permite aunque el tiempo haya vencido: así el front cierra el intento al llegar a 0.
+ */
 export async function completeAssessment(
-  assessmentSubmissionId: number
+  assessmentSubmissionId: number,
+  studentId: number
 ): Promise<AssessmentSubmission> {
-  const submission = await assessmentSubmissionRepository.findById(assessmentSubmissionId);
-  if (!submission) {
-    throw notFound(`Assessment submission ${assessmentSubmissionId} not found`);
-  }
+  const submission = await findOwnSubmission(assessmentSubmissionId, studentId);
   if (submission.completedAt) {
     throw conflict(`Assessment submission ${submission.id} is already completed`);
   }
 
-  const attempts = await questionSubmissionRepository.findByAssessmentSubmission(
-    submission.id
-  );
-  const finalScore = sumLatestScorePerQuestion(attempts);
-
-  return assessmentSubmissionRepository.complete(submission.id, finalScore);
+  return closeAttempt(submission.id);
 }
 
-export async function getSubmissionDetail(assessmentSubmissionId: number): Promise<SubmissionDetail> {
-  const submission = await assessmentSubmissionRepository.findById(assessmentSubmissionId);
-  if (!submission) {
-    throw notFound(`Assessment submission ${assessmentSubmissionId} not found`);
-  }
+/** Fija como puntaje final la suma del último envío de cada pregunta y marca el intento como terminado. */
+async function closeAttempt(assessmentSubmissionId: number): Promise<AssessmentSubmission> {
+  const attempts = await questionSubmissionRepository.findByAssessmentSubmission(
+    assessmentSubmissionId
+  );
+  return assessmentSubmissionRepository.complete(
+    assessmentSubmissionId,
+    sumLatestScorePerQuestion(attempts)
+  );
+}
+
+export async function getSubmissionDetail(
+  assessmentSubmissionId: number,
+  studentId: number
+): Promise<SubmissionDetail> {
+  const submission = await findOwnSubmission(assessmentSubmissionId, studentId);
 
   const attempts = await questionSubmissionRepository.findByAssessmentSubmission(
     submission.id
@@ -179,10 +199,27 @@ export async function getSubmissionDetail(assessmentSubmissionId: number): Promi
   return { ...submission, questionSubmissions: detailed };
 }
 
+/** Un estudiante solo puede ver o modificar sus propios intentos. */
+async function findOwnSubmission(
+  assessmentSubmissionId: number,
+  studentId: number
+): Promise<AssessmentSubmission> {
+  const submission = await assessmentSubmissionRepository.findById(assessmentSubmissionId);
+  if (!submission) {
+    throw notFound(`Assessment submission ${assessmentSubmissionId} not found`);
+  }
+  if (submission.studentId !== studentId) {
+    throw forbidden(`Assessment submission ${assessmentSubmissionId} belongs to another student`);
+  }
+  return submission;
+}
+
+// El runner responde los resultados en el mismo orden en que recibió los casos. Si no hay
+// resultado (p. ej. error de compilación), el caso queda como fallido con el error general.
 function buildTestCaseResults(
   questionSubmissionId: number,
   cases: TestCase[],
-  execution: ReturnType<typeof runCode> extends Promise<infer T> ? T : never
+  execution: ExecutionResult
 ) {
   return cases.map((testCase, index) => {
     const result = execution.testResults?.[index];
@@ -198,6 +235,8 @@ function buildTestCaseResults(
   });
 }
 
+// Depende de que el repositorio devuelva los envíos del más reciente al más antiguo:
+// el primero que aparece de cada pregunta es el que cuenta.
 function sumLatestScorePerQuestion(attempts: QuestionSubmissionWithQuestion[]): number {
   const latestByQuestion = new Map<number, QuestionSubmission>();
 

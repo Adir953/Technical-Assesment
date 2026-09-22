@@ -1,38 +1,22 @@
-import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
-import * as os from 'os';
-import { checkSyntax } from './syntaxCheck';
+import type { ExecutionResult, TestCase } from '../types/execution';
+import { createWorkDir, evaluateRun, runSandboxed } from '../utils/sandbox';
+import { checkSyntax } from '../utils/syntaxCheck';
+import { runTestCases } from '../utils/testRunner';
 
-interface TestCase {
-  input: string;
-  expectedOutput: string;
-  isVisible: boolean;
-}
-
-interface ExecutionResult {
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'COMPILE_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
-  output?: string;
-  error?: string;
-  testResults?: Array<{
-    testCaseIndex: number;
-    input: string;
-    expectedOutput: string;
-    actualOutput?: string;
-    passed: boolean;
-    error?: string;
-  }>;
-  passedTests?: number;
-  totalTests?: number;
-}
-
+/**
+ * Arma `solution.js` con el código del candidato más un harness que lee una línea JSON de stdin
+ * (la lista de argumentos), llama a la función del código inicial y imprime el resultado en JSON.
+ * Primero valida la sintaxis con `node --check` y luego ejecuta un proceso por caso.
+ */
 export async function executeJavaScript(
   userCode: string,
   templateCode: string,
   testCases: TestCase[],
   timeoutMs: number = 5000
 ): Promise<ExecutionResult> {
-  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'node-exec-'));
+  const tmpDir = createWorkDir('node-exec-');
   const scriptPath = path.join(tmpDir, 'solution.js');
 
   try {
@@ -75,10 +59,14 @@ export async function executeJavaScript(
       return { status: 'COMPILE_ERROR', error: syntaxError, passedTests: 0, totalTests: testCases.length };
     }
 
-    // Execute test cases
-    const testResults = await runTestCases(scriptPath, testCases, timeoutMs);
-
-    return testResults;
+    return await runTestCases(testCases, async (testCase) => {
+      const run = await runSandboxed('node', ['--max-old-space-size=128', scriptPath], {
+        cwd: tmpDir,
+        timeoutMs,
+        input: testCase.input || '',
+      });
+      return evaluateRun(run, testCase.expectedOutput);
+    });
   } catch (error) {
     return {
       status: 'RUNTIME_ERROR',
@@ -91,137 +79,4 @@ export async function executeJavaScript(
       console.error('Cleanup error:', e);
     }
   }
-}
-
-async function runTestCases(
-  scriptPath: string,
-  testCases: TestCase[],
-  timeoutMs: number
-): Promise<ExecutionResult> {
-  const testResults = [];
-  let passedTests = 0;
-  let firstError: ExecutionResult | null = null;
-
-  for (let i = 0; i < testCases.length; i++) {
-    const testCase = testCases[i];
-    const result = await runSingleTest(scriptPath, testCase, timeoutMs);
-
-    testResults.push({
-      testCaseIndex: i,
-      input: testCase.input,
-      expectedOutput: testCase.expectedOutput,
-      actualOutput: result.output,
-      passed: result.passed,
-      error: result.error,
-    });
-
-    if (result.passed) {
-      passedTests++;
-    } else if (!firstError) {
-      firstError = {
-        status: result.status,
-        error: result.error,
-        output: result.output,
-      };
-    }
-  }
-
-  const allPassed = passedTests === testCases.length;
-
-  return {
-    status: allPassed ? 'SUCCESS' : firstError?.status || 'WRONG_ANSWER',
-    error: allPassed ? undefined : firstError?.error,
-    testResults,
-    passedTests,
-    totalTests: testCases.length,
-    output: allPassed ? 'All tests passed!' : undefined,
-  };
-}
-
-async function runSingleTest(
-  scriptPath: string,
-  testCase: TestCase,
-  timeoutMs: number
-): Promise<{
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
-  output?: string;
-  passed: boolean;
-  error?: string;
-}> {
-  return new Promise((resolve) => {
-    if (typeof testCase.expectedOutput !== 'string') {
-      resolve({
-        status: 'RUNTIME_ERROR',
-        passed: false,
-        error: `Invalid test case: expectedOutput is missing or empty`,
-      });
-      return;
-    }
-
-    const process = spawn('node', [scriptPath]);
-
-    let stdout = '';
-    let stderr = '';
-    let timedOut = false;
-
-    const timeout = setTimeout(() => {
-      timedOut = true;
-      process.kill('SIGKILL');
-    }, timeoutMs);
-
-    process.stdin.write(testCase.input || '');
-    process.stdin.end();
-
-    process.stdout.on('data', (data) => {
-      stdout += data.toString();
-    });
-
-    process.stderr.on('data', (data) => {
-      stderr += data.toString();
-    });
-
-    process.on('close', (code) => {
-      clearTimeout(timeout);
-
-      if (timedOut) {
-        resolve({
-          status: 'TIME_LIMIT_EXCEEDED',
-          output: stdout,
-          passed: false,
-          error: 'Execution time exceeded',
-        });
-        return;
-      }
-
-      if (code !== 0 && stderr) {
-        resolve({
-          status: 'RUNTIME_ERROR',
-          output: stdout,
-          passed: false,
-          error: stderr.trim(),
-        });
-        return;
-      }
-
-      const trimmedOutput = stdout.trim();
-      const expectedOutput = (testCase.expectedOutput || '').trim();
-      const passed = trimmedOutput === expectedOutput;
-
-      resolve({
-        status: passed ? 'SUCCESS' : 'WRONG_ANSWER',
-        output: trimmedOutput,
-        passed,
-        error: passed ? undefined : `Expected: ${expectedOutput}, Got: ${trimmedOutput}`,
-      });
-    });
-
-    process.on('error', (err) => {
-      clearTimeout(timeout);
-      resolve({
-        status: 'RUNTIME_ERROR',
-        passed: false,
-        error: err.message,
-      });
-    });
-  });
 }

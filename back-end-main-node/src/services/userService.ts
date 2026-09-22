@@ -1,31 +1,29 @@
 import { scrypt, timingSafeEqual } from 'crypto';
 import { promisify } from 'util';
 import { userRepository } from '../repositories';
-import { badRequest, notFound, unauthorized } from '../middleware/errorHandler';
-import type { PublicUser, User, UserRole } from '../types/user';
+import { unauthorized } from '../middleware/errorHandler';
+import type { PublicUser, User } from '../types/user';
 
 const scryptAsync = promisify(scrypt) as (password: string, salt: string, keylen: number) => Promise<Buffer>;
 
-export async function requireRole(id: number, role: UserRole): Promise<User> {
-  const user = await userRepository.findById(id);
-  if (!user) {
-    throw notFound(`User ${id} not found`);
-  }
-  if (user.role !== role) {
-    throw badRequest(`User ${id} is not a ${role}`);
-  }
-  return user;
-}
-
 /**
- * Valida usuario, contraseña y perfil. Responde siempre el mismo 401 para no revelar
- * cuál de los tres datos falló.
+ * Valida usuario y contraseña; el rol sale de la base de datos. Responde siempre el mismo 401
+ * para no revelar cuál de los dos datos falló.
  */
-export async function login(username: string, password: string, role: UserRole): Promise<PublicUser> {
+export async function login(username: string, password: string): Promise<PublicUser> {
   const user = await userRepository.findByUsername(username.trim().toLowerCase());
   const valid = user !== undefined && (await verifyPassword(password, user.passwordHash));
-  if (!user || !valid || user.role !== role) {
-    throw unauthorized('Invalid username, password or role');
+  if (!user || !valid) {
+    throw unauthorized('Invalid username or password');
+  }
+  return toPublicUser(user);
+}
+
+/** 401 si el usuario del token ya no existe: la sesión deja de ser válida. */
+export async function getPublicUser(id: number): Promise<PublicUser> {
+  const user = await userRepository.findById(id);
+  if (!user) {
+    throw unauthorized('Session user no longer exists');
   }
   return toPublicUser(user);
 }

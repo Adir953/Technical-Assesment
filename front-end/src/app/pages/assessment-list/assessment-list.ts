@@ -55,7 +55,7 @@ export class AssessmentListPage {
       const user = this.session.user();
       const [assessments, submissions] = await Promise.all([
         firstValueFrom(this.api.listAssessments()),
-        user?.role === 'student' ? firstValueFrom(this.api.listSubmissions(user.id)) : Promise.resolve([]),
+        user?.role === 'student' ? firstValueFrom(this.api.listSubmissions()) : Promise.resolve([]),
       ]);
       this.assessments.set(assessments);
       this.submissions.set(submissions);
@@ -67,12 +67,10 @@ export class AssessmentListPage {
   }
 
   async start(assessment: Assessment) {
-    const user = this.session.user();
-    if (!user) return;
     this.starting.set(assessment.id);
     this.error.set(null);
     try {
-      const submissionId = await this.api.startOrResume(user.id, assessment.id);
+      const submissionId = await this.api.startOrResume(assessment.id);
       await this.router.navigate(['/submissions', submissionId]);
     } catch (err) {
       this.error.set(errorMessage(err));
