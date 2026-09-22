@@ -2,6 +2,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  computed,
   effect,
   inject,
   input,
@@ -9,6 +10,7 @@ import {
   signal,
   viewChild,
 } from '@angular/core';
+import { respectsLock, templateLock } from '../../core/template-lock';
 
 // Monaco se sirve como assets estáticos (ver angular.json) y se carga con su
 // loader AMD, así no pasa por el bundler de Angular.
@@ -56,12 +58,22 @@ export class MonacoEditor {
   readonly value = input.required<string>();
   readonly language = input<string>('javascript');
   readonly markers = input<EditorMarker[]>([]);
+  // Código inicial cuya firma y comentario no se pueden modificar (null = todo editable).
+  readonly lockedTemplate = input<string | null>(null);
   readonly valueChange = output<string>();
 
   private readonly host = viewChild.required<ElementRef<HTMLDivElement>>('host');
   protected readonly fallback = signal(false);
+  private readonly lock = computed(() => {
+    const template = this.lockedTemplate();
+    return template ? templateLock(template) : null;
+  });
   private monaco: Monaco = null;
   private editor: Monaco = null;
+  private lockDecorations: Monaco = null;
+  private lastValue = '';
+  // Activo mientras el valor cambia por código (no por el usuario); omite la validación del bloqueo.
+  private reverting = false;
 
   constructor() {
     loadMonaco()
@@ -77,8 +89,11 @@ export class MonacoEditor {
           scrollBeyondLastLine: false,
           tabSize: 4,
         });
-        this.editor.onDidChangeModelContent(() => this.valueChange.emit(this.editor.getValue()));
+        this.lastValue = this.editor.getValue();
+        this.lockDecorations = this.editor.createDecorationsCollection();
+        this.editor.onDidChangeModelContent((e: Monaco) => this.onContentChange(e));
         this.applyMarkers(this.markers());
+        this.paintLock();
       })
       .catch((err) => {
         console.error(err);
@@ -88,15 +103,64 @@ export class MonacoEditor {
     // Sincroniza cambios externos (p. ej. al cambiar de lenguaje).
     effect(() => {
       const value = this.value();
-      if (this.editor && this.editor.getValue() !== value) this.editor.setValue(value);
+      if (this.editor && this.editor.getValue() !== value) {
+        this.reverting = true;
+        this.editor.setValue(value);
+        this.reverting = false;
+      }
     });
     effect(() => {
       const language = this.language();
       if (this.editor) this.monaco.editor.setModelLanguage(this.editor.getModel(), language);
     });
     effect(() => this.applyMarkers(this.markers()));
+    effect(() => {
+      this.lock();
+      this.paintLock();
+    });
 
     inject(DestroyRef).onDestroy(() => this.editor?.dispose());
+  }
+
+  private onContentChange(e: Monaco) {
+    const value = this.editor.getValue();
+    const lock = this.lock();
+    // Si el cambio toca la plantilla, se deshace. Solo aplica cuando el código ya la respetaba,
+    // para no bloquear respuestas guardadas antes de esta regla.
+    if (!this.reverting && lock && respectsLock(this.lastValue, lock) && !respectsLock(value, lock)) {
+      const { startLineNumber, startColumn } = e.changes[0].range;
+      this.reverting = true;
+      this.editor.setValue(this.lastValue);
+      this.reverting = false;
+      this.editor.setPosition({ lineNumber: startLineNumber, column: startColumn });
+      return;
+    }
+    this.lastValue = value;
+    this.paintLock();
+    this.valueChange.emit(value);
+  }
+
+  // Sombrea las líneas bloqueadas para que el estudiante vea qué no puede editar.
+  private paintLock() {
+    if (!this.editor) return;
+    const lock = this.lock();
+    const model = this.editor.getModel();
+    const code: string = model.getValue();
+    if (!lock || !respectsLock(code, lock)) {
+      this.lockDecorations.clear();
+      return;
+    }
+    const ranges = [[0, lock.prefix.length - 1]];
+    if (lock.suffix) {
+      const end = code.trimEnd().length;
+      ranges.push([end - lock.suffix.length, end]);
+    }
+    this.lockDecorations.set(
+      ranges.map(([from, to]) => ({
+        range: new this.monaco.Range(model.getPositionAt(from).lineNumber, 1, model.getPositionAt(to).lineNumber, 1),
+        options: { isWholeLine: true, className: 'template-locked' },
+      }))
+    );
   }
 
   private applyMarkers(markers: EditorMarker[]) {

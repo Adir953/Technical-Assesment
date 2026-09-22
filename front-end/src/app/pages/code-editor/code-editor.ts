@@ -35,6 +35,10 @@ export class CodeEditorPage {
   private readonly submission = signal<SubmissionDetail | null>(null);
   protected readonly language = signal<ProgrammingLanguage>('javascript');
   protected readonly code = signal('');
+  protected readonly template = computed(() => {
+    const q = this.question();
+    return q ? starterFor(q, this.language()) : null;
+  });
   protected readonly result = signal<ConsoleView | null>(null);
   // Resumen del último envío calificado; se muestra hasta la siguiente ejecución o envío.
   protected readonly submitted = signal<SubmittedNotice | null>(null);

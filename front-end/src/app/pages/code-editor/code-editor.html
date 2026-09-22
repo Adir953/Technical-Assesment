@@ -45,11 +45,15 @@
         <button class="btn" (click)="run()" [disabled]="busy() || expired()">▶ Ejecutar</button>
         <button class="btn btn-primary" (click)="submit()" [disabled]="busy() || expired()">Enviar respuesta</button>
       </div>
+      <p class="template-hint">
+        🔒 Las líneas sombreadas son parte de la plantilla y no se pueden modificar. Escribe tu solución debajo del comentario.
+      </p>
       <div class="editor-frame">
         <app-monaco-editor
           [value]="code()"
           [language]="language()"
           [markers]="markers()"
+          [lockedTemplate]="template()"
           (valueChange)="setCode($event)"
         />
       </div>

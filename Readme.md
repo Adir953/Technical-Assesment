@@ -105,17 +105,13 @@ contenedores.
 
 ### Levantar la plataforma
 
-Desde la raíz del repositorio (el mismo comando en macOS, Windows y Linux):
+Desde la raíz del repositorio:
 
 ```bash
 docker compose up -d --build --wait
 ```
 
-- `--build` construye las imágenes. La primera vez tarda varios minutos, porque descarga las imágenes
-  base y las dependencias. Las siguientes veces reutiliza la caché.
-- `--wait` no devuelve la terminal hasta que todos los servicios están listos.
-
-Cuando termine, abre **http://localhost:4200**.
+La primera vez tarda varios minutos. Cuando termine, abre **<http://localhost:4200>**.
 
 ### Cuentas de prueba
 
@@ -145,6 +141,9 @@ se responde en un lenguaje distinto, para ver que el mismo assessment acepta var
 > - **no elimines el comentario `// Escribe tu solución aquí`**;
 > - reemplaza solo el valor de relleno (`pass` en Python, `return 0;` o `return "";` en Java) por
 >   tu código.
+>
+> El editor aplica estas reglas: las líneas de la plantilla (firma, comentario y llaves de cierre)
+> aparecen sombreadas y cualquier cambio sobre ellas se deshace automáticamente.
 
 #### 1. Encuentra el número máximo (10 puntos), en Python
 
@@ -197,40 +196,36 @@ Para ver cómo responde la plataforma cuando algo sale mal, puedes probar tambi�
 |---|---|---|
 | Aplicación web | http://localhost:4200 | Punto de entrada |
 | API principal | http://localhost:3000/api | Acceso directo a la API (ver [API](#api-del-nodo-principal)) |
-| Adminer | http://localhost:8080 | Consultar la base de datos. Sistema *PostgreSQL*, servidor `postgres`, usuario y contraseña `postgres` |
+| Adminer | http://localhost:8080 | Consultar la base de datos (ver [Acceder a la base de datos](#acceder-a-la-base-de-datos-con-adminer)) |
 | PostgreSQL | `localhost:5432` | Base de datos `technical_assessment_platform` |
 
 Los runners no publican puertos: solo la API principal puede llamarlos.
 
-### Comandos útiles
+### Acceder a la base de datos con Adminer
 
-| Comando | Para qué |
+Abre <http://localhost:8080> y completa el formulario así:
+
+| Campo | Valor |
 |---|---|
-| `docker compose ps` | Estado de cada servicio |
-| `docker compose logs -f backend-api` | Registros de un servicio en tiempo real |
-| `docker compose down` | Detener y quitar los contenedores (los datos se conservan) |
-| `docker compose down -v` | Lo mismo y además **borra la base de datos**: al volver a levantar se crea de nuevo con los datos iniciales |
-| `docker compose up -d --build --wait <servicio>` | Reconstruir un solo servicio tras cambiar su código |
-| `docker compose down -v --rmi all` | Eliminar todo lo del proyecto: contenedores, red, base de datos e imágenes (ver abajo) |
+| Sistema | `PostgreSQL` |
+| Servidor | `postgres` |
+| Usuario | `postgres` |
+| Contraseña | `postgres` |
+| Base de datos | `technical_assessment_platform` |
+
+Si dejas **Base de datos** vacío, Adminer muestra la lista de bases de datos del servidor: elige
+`technical_assessment_platform` para ver las tablas de la plataforma.
 
 ### Eliminar todo lo del proyecto
 
-Para dejar el equipo como antes de levantar la plataforma, ejecuta desde la raíz del repositorio:
+Desde la raíz del repositorio:
 
 ```bash
 docker compose down -v --rmi all
 ```
 
-- `down` detiene y quita los contenedores de todos los servicios y la red que Compose creó para ellos.
-- `-v` borra también los volúmenes del proyecto, es decir, **la base de datos con todo lo que se
-  haya creado** (preguntas, assessments e intentos).
-- `--rmi all` borra las imágenes que usan los servicios: las que se construyeron desde este repositorio
-  (API, front-end y runners) y las descargadas (`postgres` y `adminer`). Si otro proyecto usa esas
-  mismas imágenes descargadas, tendrá que volver a descargarlas.
-
-Después de esto, el siguiente `docker compose up -d --build --wait` vuelve a descargar y construir todo
-desde cero, así que tarda como la primera vez. La caché de construcción de Docker no se borra con este
-comando; si también quieres liberar ese espacio, usa `docker builder prune`.
+Detiene la plataforma y borra sus contenedores, su red, **la base de datos** y las imágenes. La
+próxima vez que la levantes se construye todo desde cero, con los datos iniciales.
 
 ### Configuración
 

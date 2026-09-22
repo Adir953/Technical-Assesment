@@ -13,6 +13,10 @@
 .toolbar select {
   padding: .45rem .6rem; border-radius: 8px; border: 1px solid var(--border); font: inherit; background: var(--surface);
 }
+.template-hint {
+  margin: 0; padding: .6rem .85rem; border-radius: 8px; border: 1px solid var(--warn);
+  background: var(--warn-bg); color: var(--warn); font-size: .9rem;
+}
 .editor-frame { height: 420px; border-radius: var(--radius); overflow: hidden; border: 1px solid var(--border); }
 
 /* Resumen tras enviar una respuesta */
