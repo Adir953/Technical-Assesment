@@ -1,7 +1,6 @@
 import { Component, computed, inject, input, output, signal } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, errorMessage } from '../../../core/api.service';
-import { SessionService } from '../../../core/session.service';
 import type { ProgrammingLanguage, QuestionDetail } from '../../../core/models';
 import { LANGUAGES } from '../../../core/languages';
 
@@ -28,6 +27,17 @@ function isJson(value: string): boolean {
   }
 }
 
+/**
+ * Normaliza la entrada de un caso al arreglo JSON de argumentos que espera el runner.
+ * Un valor suelto (p. ej. `5` o `"hola"`) es el único argumento: se guarda como `[5]`.
+ * Devuelve null si la entrada no es JSON válido.
+ */
+export function normalizeInput(value: string): string | null {
+  const text = value.trim();
+  if (!isJson(text)) return null;
+  return Array.isArray(JSON.parse(text)) ? text : `[${text}]`;
+}
+
 /** Formulario de creación de preguntas. Emite la pregunta creada. */
 @Component({
   selector: 'app-question-form',
@@ -40,7 +50,6 @@ export class QuestionForm {
   readonly cancelled = output<void>();
 
   private readonly api = inject(ApiService);
-  private readonly session = inject(SessionService);
 
   protected readonly languages = LANGUAGES;
   protected readonly title = signal('');
@@ -66,7 +75,7 @@ export class QuestionForm {
     if (langs.length === 0) list.push('Selecciona al menos un lenguaje.');
     if (langs.some((l) => !this.starters()[l.id].trim())) list.push('Cada lenguaje permitido necesita código inicial.');
     if (this.cases().some((c) => !this.validInput(c.inputValue)))
-      list.push('Cada entrada debe ser un arreglo JSON de argumentos, p. ej. [[1,2,3]].');
+      list.push('Cada entrada debe ser JSON válido: un valor (p. ej. 5) o un arreglo de argumentos (p. ej. [[1,2,3]]).');
     if (this.cases().some((c) => !c.expectedOutput.trim())) list.push('Cada caso necesita una salida esperada.');
     if (!this.cases().some((c) => c.isVisible)) list.push('Al menos un caso debe ser de ejemplo para que el estudiante pueda "Ejecutar".');
     return list;
@@ -77,7 +86,7 @@ export class QuestionForm {
   }
 
   protected validInput(value: string): boolean {
-    return isJson(value) && Array.isArray(JSON.parse(value));
+    return normalizeInput(value) !== null;
   }
 
   toggleLanguage(id: ProgrammingLanguage) {
@@ -103,15 +112,13 @@ export class QuestionForm {
   async save(event: Event) {
     event.preventDefault();
     this.submitted.set(true);
-    const user = this.session.user();
-    if (this.problems().length || !user) return;
+    if (this.problems().length) return;
 
     this.saving.set(true);
     this.error.set(null);
     try {
       const question = await firstValueFrom(
         this.api.createQuestion({
-          createdBy: user.id,
           title: this.title().trim(),
           description: this.description().trim(),
           points: this.points(),
@@ -119,7 +126,7 @@ export class QuestionForm {
             LANGUAGES.filter((l) => this.enabled()[l.id]).map((l) => [l.id, this.starters()[l.id]])
           ),
           testCases: this.cases().map((c) => ({
-            inputValue: c.inputValue.trim(),
+            inputValue: normalizeInput(c.inputValue)!,
             // Un texto sin comillas no es JSON: se guarda como string JSON ("texto").
             expectedOutput: isJson(c.expectedOutput.trim())
               ? c.expectedOutput.trim()

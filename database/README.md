@@ -122,11 +122,8 @@ WHERE qs.assessment_submission_id = 1
 ORDER BY qs.submitted_at;
 ```
 
-Ver más queries en el archivo [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md)
-
 ## Notas
 
 - Las contraseñas en `data.sql` son ejemplos. En producción, usar bcrypt o similar
 - Los timestamps están en formato UTC
-- El campo `completed_at` en `assessment_submissions` será NULL si el estudiante aún está resolviendo
 - Los test cases con `is_visible = false` son ocultos (se ejecutan pero no se muestran al estudiante)

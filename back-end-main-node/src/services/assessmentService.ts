@@ -5,7 +5,6 @@ import {
   questionRepository,
 } from '../repositories';
 import { notFound, badRequest } from '../middleware/errorHandler';
-import { requireRole } from './userService';
 import type { Assessment, CreateAssessmentInput, AssessmentDetail } from '../types/assessment';
 
 export { type Assessment, type CreateAssessmentInput, type AssessmentDetail };
@@ -26,6 +25,10 @@ export async function getAssessment(id: number): Promise<AssessmentDetail> {
   return { ...assessment, questions, totalPossiblePoints };
 }
 
+/**
+ * Crea el assessment y lo vincula con sus preguntas. El orden de `questionIds` define el orden
+ * de las preguntas y los ids repetidos se ignoran. Falla con 404 si alguna pregunta no existe.
+ */
 export async function createAssessment(
   input: CreateAssessmentInput
 ): Promise<AssessmentDetail> {
@@ -33,8 +36,6 @@ export async function createAssessment(
   if (questionIds.length === 0) {
     throw badRequest('questionIds must contain at least one question');
   }
-
-  await requireRole(input.createdBy, 'admin');
 
   const found = await questionRepository.findByIds(questionIds);
   if (found.length !== questionIds.length) {

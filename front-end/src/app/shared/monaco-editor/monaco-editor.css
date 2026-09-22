@@ -4,3 +4,5 @@
   font-family: var(--font-mono); font-size: 14px; padding: 12px; border: 0; resize: none;
   background: #1e1e1e; color: #d4d4d4; box-sizing: border-box;
 }
+/* Líneas de la plantilla que no se pueden editar (Monaco crea este DOM fuera del encapsulamiento). */
+:host ::ng-deep .template-locked { background: rgba(255, 255, 255, 0.07); }

@@ -3,7 +3,6 @@ import { DatePipe } from '@angular/common';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, errorMessage } from '../../core/api.service';
-import { SessionService } from '../../core/session.service';
 import {
   PASSING_PERCENT,
   STATE_LABEL,
@@ -23,7 +22,6 @@ export class ResultsPage {
   readonly submissionId = input.required<string>();
 
   private readonly api = inject(ApiService);
-  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
   protected readonly labels = STATE_LABEL;
   protected readonly submission = signal<SubmissionDetail | null>(null);
@@ -68,12 +66,11 @@ export class ResultsPage {
   /** Crea un intento nuevo del mismo assessment (o retoma el que esté en curso). */
   async retake() {
     const s = this.submission();
-    const user = this.session.user();
-    if (!s || !user) return;
+    if (!s) return;
     this.retaking.set(true);
     this.error.set(null);
     try {
-      const submissionId = await this.api.startOrResume(user.id, s.assessmentId);
+      const submissionId = await this.api.startOrResume(s.assessmentId);
       await this.router.navigate(['/submissions', submissionId]);
     } catch (err) {
       this.error.set(errorMessage(err));

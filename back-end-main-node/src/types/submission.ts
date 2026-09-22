@@ -4,6 +4,7 @@ import type {
   testCaseResults,
 } from '../models';
 import type { Question } from './question';
+import type { ExecutionStatus } from './execution';
 
 export type AssessmentSubmission = typeof assessmentSubmissions.$inferSelect;
 export type NewAssessmentSubmission = typeof assessmentSubmissions.$inferInsert;
@@ -23,6 +24,7 @@ export interface SubmissionDetail extends AssessmentSubmission {
 
 export interface SubmitSolutionInput {
   assessmentSubmissionId: number;
+  studentId: number;
   questionId: number;
   code: string;
   language: ProgrammingLanguage;
@@ -30,6 +32,6 @@ export interface SubmitSolutionInput {
 
 export interface SolutionResult {
   questionSubmission: QuestionSubmission;
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'COMPILE_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
+  status: ExecutionStatus;
   testCaseResults: TestCaseResult[];
 }

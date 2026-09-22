@@ -6,6 +6,10 @@ import type { Question } from '../types/question';
 
 import { db, type DbClient } from '../db';
 
+/**
+ * Envíos de un intento con su pregunta, del más reciente al más antiguo. El cálculo del puntaje
+ * final y el front dependen de este orden para quedarse con el último envío de cada pregunta.
+ */
 export async function findByAssessmentSubmission(
   assessmentSubmissionId: number
 ): Promise<(QuestionSubmission & { question: Question })[]> {

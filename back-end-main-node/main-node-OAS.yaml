@@ -1,0 +1,970 @@
+openapi: 3.0.3
+info:
+  title: Technical Assessment Platform API
+  version: 1.0.0
+  description: |
+    API del nodo principal (`back-end-main-node`): autenticación, preguntas, assessments, intentos y
+    calificación. El código se ejecuta en los runners de cada lenguaje, a los que solo llama esta API.
+
+    **Sesión.** `POST /auth/login` deja un JWT en la cookie `httpOnly` `tap_session` (válido 8 horas,
+    `SameSite=Strict`, `Path=/api`). El navegador la envía sola en cada petición. El usuario y el rol
+    salen siempre de la sesión, nunca del cuerpo de la petición.
+
+    **Roles.** `admin` (evaluador) crea preguntas y assessments. `student` (candidato) presenta los
+    assessments. Un candidato solo puede ver y modificar sus propios intentos.
+
+    **Casos de prueba.** `inputValue` es la lista de argumentos de la función en JSON y
+    `expectedOutput` el valor que debe retornar, también en JSON. Por ejemplo, para `findMax(arr)`:
+    `inputValue: "[[3, 5, 1, 8]]"`, `expectedOutput: "8"`.
+
+    **Errores.** Todas las respuestas de error tienen la forma `{ "error": { status, message, timestamp } }`.
+servers:
+  - url: http://localhost:4200/api
+    description: A través del front-end (nginx reenvía /api a la API)
+  - url: http://localhost:3000/api
+    description: Acceso directo a la API
+tags:
+  - name: Auth
+    description: Inicio y cierre de sesión
+  - name: Questions
+    description: Preguntas de programación y ejecución de prueba
+  - name: Assessments
+    description: Evaluaciones formadas por preguntas en orden
+  - name: Submissions
+    description: Intentos del candidato, envío de respuestas y calificación
+security:
+  - sessionCookie: []
+
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Iniciar sesión
+      operationId: login
+      description: |
+        Valida usuario y contraseña y deja el JWT en la cookie `tap_session`. El usuario no distingue
+        mayúsculas ni espacios al inicio o al final. El rol sale de la base de datos.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              username: estudiante
+              password: estudiante
+      responses:
+        '200':
+          description: Sesión iniciada
+          headers:
+            Set-Cookie:
+              description: Cookie de sesión con el JWT
+              schema:
+                type: string
+                example: tap_session=eyJhbGciOi...; Path=/api; HttpOnly; SameSite=Strict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Usuario o contraseña incorrectos (el mismo mensaje en los dos casos)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: { status: 401, message: Invalid username or password, timestamp: '2026-09-22T10:00:00.000Z' }
+
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Cerrar sesión
+      operationId: logout
+      description: Borra la cookie de sesión. No exige una sesión válida.
+      security: []
+      responses:
+        '204':
+          description: Sesión cerrada
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Usuario de la sesión
+      operationId: me
+      description: El front lo consulta al arrancar para restaurar la sesión.
+      responses:
+        '200':
+          description: Usuario de la sesión actual
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /questions:
+    get:
+      tags: [Questions]
+      summary: Listar preguntas
+      operationId: listQuestions
+      responses:
+        '200':
+          description: Todas las preguntas, sin código inicial ni casos de prueba
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Question'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Questions]
+      summary: Crear una pregunta
+      operationId: createQuestion
+      description: |
+        Solo evaluadores. Crea la pregunta con su código inicial y sus casos de prueba en una
+        transacción. Los lenguajes que traen código inicial son los únicos permitidos para
+        resolverla. El autor es el usuario de la sesión.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateQuestionRequest'
+      responses:
+        '201':
+          description: Pregunta creada, con todos sus casos de prueba (visibles y ocultos)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /questions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Questions]
+      summary: Obtener una pregunta
+      operationId: getQuestion
+      description: |
+        Pregunta con su código inicial por lenguaje y **solo los casos de prueba visibles**. Los
+        ocultos nunca salen del backend.
+      responses:
+        '200':
+          description: Detalle de la pregunta
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QuestionDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /questions/{id}/run:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Questions]
+      summary: Ejecutar código sin calificar
+      operationId: runQuestion
+      description: |
+        Prueba rápida ("Ejecutar"): corre el código con los 2 primeros casos visibles y no guarda
+        nada. Los errores del código (compilación, ejecución, tiempo) se responden con `200` y el
+        `status` correspondiente. Si el runner no responde, el resultado es `RUNTIME_ERROR`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+            example:
+              code: "def find_max(arr):\n    return max(arr)\n"
+              language: python
+      responses:
+        '200':
+          description: Resultado de la ejecución
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ExecutionResult'
+              example:
+                status: WRONG_ANSWER
+                error: 'Expected: 8, Got: 3'
+                testResults:
+                  - { testCaseIndex: 0, input: '[[3, 5, 1, 8, 2]]', expectedOutput: '8', actualOutput: '3', passed: false, error: 'Expected: 8, Got: 3' }
+                  - { testCaseIndex: 1, input: '[[10, 20, 5]]', expectedOutput: '20', actualOutput: '10', passed: false, error: 'Expected: 20, Got: 10' }
+                passedTests: 0
+                totalTests: 2
+        '400':
+          description: Datos inválidos, lenguaje no permitido para la pregunta o pregunta sin casos visibles
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /assessments:
+    get:
+      tags: [Assessments]
+      summary: Listar assessments
+      operationId: listAssessments
+      description: Del más reciente al más antiguo.
+      responses:
+        '200':
+          description: Lista de assessments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Assessment'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Assessments]
+      summary: Crear un assessment
+      operationId: createAssessment
+      description: |
+        Solo evaluadores. El orden de `questionIds` define el orden de las preguntas y los ids
+        repetidos se ignoran. El autor es el usuario de la sesión.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateAssessmentRequest'
+            example:
+              title: Assessment Algoritmos Simples
+              description: Evaluación de algoritmos y lógica de programación.
+              durationMinutes: 90
+              questionIds: [1, 3]
+      responses:
+        '201':
+          description: Assessment creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Alguna de las preguntas no existe
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /assessments/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Assessments]
+      summary: Obtener un assessment
+      operationId: getAssessment
+      description: Assessment con sus preguntas en orden y el puntaje total posible.
+      responses:
+        '200':
+          description: Detalle del assessment
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /submissions:
+    get:
+      tags: [Submissions]
+      summary: Listar mis intentos
+      operationId: listSubmissions
+      description: Solo candidatos. Intentos del candidato de la sesión, del más reciente al más antiguo.
+      responses:
+        '200':
+          description: Intentos del candidato
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/AssessmentSubmission'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+    post:
+      tags: [Submissions]
+      summary: Iniciar un intento
+      operationId: startAssessment
+      description: |
+        Solo candidatos. Abre un intento del assessment. El tiempo límite empieza a contar desde
+        ahora. Un candidato solo puede tener un intento en curso por assessment.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assessmentId]
+              properties:
+                assessmentId:
+                  type: integer
+                  minimum: 1
+            example:
+              assessmentId: 2
+      responses:
+        '201':
+          description: Intento creado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentSubmission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Ya hay un intento en curso de ese assessment. El mensaje incluye su id.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: { status: 409, message: Student 2 already has attempt 12 in progress for this assessment, timestamp: '2026-09-22T10:00:00.000Z' }
+
+  /submissions/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Submissions]
+      summary: Obtener un intento
+      operationId: getSubmission
+      description: |
+        Solo candidatos. Intento con todos sus envíos (del más reciente al más antiguo) y el
+        resultado de cada caso de prueba.
+      responses:
+        '200':
+          description: Detalle del intento
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionDetail'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: No es candidato o el intento es de otro candidato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /submissions/{id}/questions:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Submissions]
+      summary: Enviar y calificar una respuesta
+      operationId: submitSolution
+      description: |
+        Solo candidatos. Corre el código con **todos** los casos de la pregunta, incluidos los
+        ocultos, y guarda el envío. El puntaje es proporcional a los casos aprobados (4 de 5 en una
+        pregunta de 10 puntos = 8). Se puede reenviar: cuenta el último envío de cada pregunta.
+
+        El tiempo límite se valida en el servidor, con 30 segundos de margen. Un envío fuera de
+        tiempo no se ejecuta, y el intento se cierra con lo que ya se había enviado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitSolutionRequest'
+            example:
+              questionId: 3
+              code: "public class Solution {\n    public int sumEvenNumbers(int[] arr) {\n        int sum = 0;\n        for (int n : arr) {\n            if (n % 2 == 0) {\n                sum += n;\n            }\n        }\n        return sum;\n    }\n}\n"
+              language: java
+      responses:
+        '201':
+          description: Respuesta calificada y guardada
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SolutionResult'
+        '400':
+          description: Datos inválidos, pregunta que no es del assessment o lenguaje no permitido
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: No es candidato o el intento es de otro candidato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El intento ya terminó o se acabó el tiempo (en ese caso el intento queda cerrado)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: { status: 409, message: 'Time limit exceeded: assessment submission 12 has been closed', timestamp: '2026-09-22T10:00:00.000Z' }
+
+  /submissions/{id}/complete:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    post:
+      tags: [Submissions]
+      summary: Finalizar un intento
+      operationId: completeAssessment
+      description: |
+        Solo candidatos. Cierra el intento y fija el puntaje final: la suma del último envío de cada
+        pregunta. Después ya no se aceptan envíos. Se permite aunque el tiempo haya vencido, para que
+        el front cierre el intento cuando el temporizador llega a 0.
+      responses:
+        '200':
+          description: Intento finalizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AssessmentSubmission'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: No es candidato o el intento es de otro candidato
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El intento ya estaba finalizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    sessionCookie:
+      type: apiKey
+      in: cookie
+      name: tap_session
+      description: JWT que deja `POST /auth/login`. Lo envía el navegador automáticamente.
+
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Id numérico (entero positivo)
+      schema:
+        type: integer
+        minimum: 1
+
+  responses:
+    BadRequest:
+      description: Datos inválidos (el mensaje indica el campo)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: { status: 400, message: id must be a positive integer, timestamp: '2026-09-22T10:00:00.000Z' }
+    Unauthorized:
+      description: Sin sesión, o la sesión venció o no es válida
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: { status: 401, message: Not authenticated, timestamp: '2026-09-22T10:00:00.000Z' }
+    Forbidden:
+      description: El rol del usuario no permite esta operación
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: { status: 403, message: Only admin users can do this, timestamp: '2026-09-22T10:00:00.000Z' }
+    NotFound:
+      description: El recurso no existe
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            error: { status: 404, message: Assessment 99 not found, timestamp: '2026-09-22T10:00:00.000Z' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [status, message, timestamp]
+          properties:
+            status:
+              type: integer
+              example: 404
+            message:
+              type: string
+            timestamp:
+              type: string
+              format: date-time
+
+    ProgrammingLanguage:
+      type: string
+      enum: [python, javascript, java]
+
+    ExecutionStatus:
+      type: string
+      enum: [SUCCESS, WRONG_ANSWER, COMPILE_ERROR, RUNTIME_ERROR, TIME_LIMIT_EXCEEDED]
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+
+    User:
+      type: object
+      required: [id, name, username, email, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        username:
+          type: string
+          nullable: true
+        email:
+          type: string
+          format: email
+        role:
+          type: string
+          enum: [student, admin]
+      example:
+        id: 2
+        name: Estudiante Demo
+        username: estudiante
+        email: estudiante@example.com
+        role: student
+
+    Question:
+      type: object
+      required: [id, createdBy, title, description, points, createdAt]
+      properties:
+        id:
+          type: integer
+        createdBy:
+          type: integer
+          description: Id del evaluador que la creó
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+        points:
+          type: integer
+          description: Puntaje de la pregunta
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+      example:
+        id: 1
+        createdBy: 1
+        title: Encuentra el número máximo
+        description: Dado un arreglo de números, retorna el valor máximo del arreglo.
+        points: 10
+        createdAt: '2026-09-01T12:00:00.000Z'
+
+    StarterCodes:
+      type: object
+      description: Código inicial por lenguaje. Las claves presentes son los lenguajes permitidos.
+      properties:
+        python:
+          type: string
+        javascript:
+          type: string
+        java:
+          type: string
+      additionalProperties: false
+      example:
+        python: "def find_max(arr):\n    # Escribe tu solución aquí\n    pass\n"
+        java: "public class Solution {\n    public int findMax(int[] arr) {\n        // Escribe tu solución aquí\n        return 0;\n    }\n}\n"
+
+    TestCase:
+      type: object
+      required: [id, questionId, inputValue, expectedOutput, isVisible]
+      properties:
+        id:
+          type: integer
+        questionId:
+          type: integer
+        inputValue:
+          type: string
+          description: Lista de argumentos de la función, en JSON
+          example: '[[3, 5, 1, 8, 2]]'
+        expectedOutput:
+          type: string
+          description: Valor que debe retornar la función, en JSON
+          example: '8'
+        isVisible:
+          type: boolean
+          nullable: true
+          description: true = caso de ejemplo (visible), false = caso oculto (solo para calificar)
+
+    QuestionDetail:
+      allOf:
+        - $ref: '#/components/schemas/Question'
+        - type: object
+          required: [starterCodes, testCases]
+          properties:
+            starterCodes:
+              $ref: '#/components/schemas/StarterCodes'
+            testCases:
+              type: array
+              description: En `GET /questions/{id}` solo incluye los casos visibles
+              items:
+                $ref: '#/components/schemas/TestCase'
+
+    CreateQuestionRequest:
+      type: object
+      required: [title, description, points, starterCodes, testCases]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        points:
+          type: integer
+          minimum: 1
+        starterCodes:
+          allOf:
+            - $ref: '#/components/schemas/StarterCodes'
+          description: Al menos un lenguaje
+        testCases:
+          type: array
+          minItems: 1
+          items:
+            type: object
+            required: [inputValue, expectedOutput]
+            properties:
+              inputValue:
+                type: string
+                description: Lista de argumentos de la función, en JSON
+              expectedOutput:
+                type: string
+                description: Valor que debe retornar la función, en JSON
+              isVisible:
+                type: boolean
+                default: true
+                description: false para un caso oculto
+      example:
+        title: Suma números pares
+        description: Dado un arreglo de números, retorna la suma de todos los números pares.
+        points: 15
+        starterCodes:
+          python: "def sum_even_numbers(arr):\n    # Escribe tu solución aquí\n    pass\n"
+        testCases:
+          - { inputValue: '[[1, 2, 3, 4, 5, 6]]', expectedOutput: '12' }
+          - { inputValue: '[[1, 3, 5]]', expectedOutput: '0', isVisible: false }
+
+    RunRequest:
+      type: object
+      required: [code, language]
+      properties:
+        code:
+          type: string
+          description: Código completo de la solución
+        language:
+          $ref: '#/components/schemas/ProgrammingLanguage'
+
+    SubmitSolutionRequest:
+      type: object
+      required: [questionId, code, language]
+      properties:
+        questionId:
+          type: integer
+          minimum: 1
+          description: Pregunta del assessment que se responde
+        code:
+          type: string
+          description: Código completo de la solución
+        language:
+          $ref: '#/components/schemas/ProgrammingLanguage'
+
+    ExecutionResult:
+      type: object
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        output:
+          type: string
+          description: Salida general (por ejemplo, "All tests passed!")
+        error:
+          type: string
+          description: Error general, el del primer caso que falla o el de compilación
+        testResults:
+          type: array
+          items:
+            type: object
+            required: [testCaseIndex, input, expectedOutput, passed]
+            properties:
+              testCaseIndex:
+                type: integer
+              input:
+                type: string
+              expectedOutput:
+                type: string
+              actualOutput:
+                type: string
+              passed:
+                type: boolean
+              error:
+                type: string
+        passedTests:
+          type: integer
+        totalTests:
+          type: integer
+
+    Assessment:
+      type: object
+      required: [id, createdBy, title, description, durationMinutes, totalQuestions, createdAt]
+      properties:
+        id:
+          type: integer
+        createdBy:
+          type: integer
+        title:
+          type: string
+          maxLength: 255
+        description:
+          type: string
+          nullable: true
+        durationMinutes:
+          type: integer
+          description: Tiempo límite en minutos
+        totalQuestions:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    OrderedQuestion:
+      allOf:
+        - $ref: '#/components/schemas/Question'
+        - type: object
+          required: [questionOrder]
+          properties:
+            questionOrder:
+              type: integer
+              description: Posición de la pregunta en el assessment, desde 1
+
+    AssessmentDetail:
+      allOf:
+        - $ref: '#/components/schemas/Assessment'
+        - type: object
+          required: [questions, totalPossiblePoints]
+          properties:
+            questions:
+              type: array
+              items:
+                $ref: '#/components/schemas/OrderedQuestion'
+            totalPossiblePoints:
+              type: integer
+              description: Suma de los puntos de las preguntas
+
+    CreateAssessmentRequest:
+      type: object
+      required: [title, durationMinutes, questionIds]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        durationMinutes:
+          type: integer
+          minimum: 1
+        questionIds:
+          type: array
+          minItems: 1
+          description: Ids de las preguntas, en el orden en que se presentan
+          items:
+            type: integer
+            minimum: 1
+
+    AssessmentSubmission:
+      type: object
+      description: Un intento de un candidato sobre un assessment
+      required: [id, studentId, assessmentId, finalScore, totalPossiblePoints, startedAt, completedAt]
+      properties:
+        id:
+          type: integer
+        studentId:
+          type: integer
+        assessmentId:
+          type: integer
+        finalScore:
+          type: integer
+          nullable: true
+          description: null mientras el intento está en curso
+        totalPossiblePoints:
+          type: integer
+        startedAt:
+          type: string
+          format: date-time
+          nullable: true
+        completedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: null mientras el intento está en curso
+      example:
+        id: 12
+        studentId: 2
+        assessmentId: 2
+        finalScore: null
+        totalPossiblePoints: 25
+        startedAt: '2026-09-22T10:00:00.000Z'
+        completedAt: null
+
+    QuestionSubmission:
+      type: object
+      description: Un envío de respuesta a una pregunta
+      required: [id, assessmentSubmissionId, questionId, studentCode, programmingLanguage, score, passedTests, totalTests, compilationError, executionOutput, submittedAt]
+      properties:
+        id:
+          type: integer
+        assessmentSubmissionId:
+          type: integer
+        questionId:
+          type: integer
+        studentCode:
+          type: string
+        programmingLanguage:
+          $ref: '#/components/schemas/ProgrammingLanguage'
+        score:
+          type: integer
+          nullable: true
+        passedTests:
+          type: integer
+          nullable: true
+        totalTests:
+          type: integer
+        compilationError:
+          type: string
+          nullable: true
+        executionOutput:
+          type: string
+          nullable: true
+        submittedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TestCaseResult:
+      type: object
+      required: [id, questionSubmissionId, testCaseId, inputValue, expectedOutput, actualOutput, isPassed, errorMessage]
+      properties:
+        id:
+          type: integer
+        questionSubmissionId:
+          type: integer
+        testCaseId:
+          type: integer
+        inputValue:
+          type: string
+        expectedOutput:
+          type: string
+        actualOutput:
+          type: string
+          nullable: true
+        isPassed:
+          type: boolean
+          nullable: true
+        errorMessage:
+          type: string
+          nullable: true
+
+    SolutionResult:
+      type: object
+      required: [questionSubmission, status, testCaseResults]
+      properties:
+        questionSubmission:
+          $ref: '#/components/schemas/QuestionSubmission'
+        status:
+          $ref: '#/components/schemas/ExecutionStatus'
+        testCaseResults:
+          type: array
+          items:
+            $ref: '#/components/schemas/TestCaseResult'
+
+    SubmissionDetail:
+      allOf:
+        - $ref: '#/components/schemas/AssessmentSubmission'
+        - type: object
+          required: [questionSubmissions]
+          properties:
+            questionSubmissions:
+              type: array
+              description: Del más reciente al más antiguo
+              items:
+                allOf:
+                  - $ref: '#/components/schemas/QuestionSubmission'
+                  - type: object
+                    required: [question, testCaseResults]
+                    properties:
+                      question:
+                        $ref: '#/components/schemas/Question'
+                      testCaseResults:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/TestCaseResult'

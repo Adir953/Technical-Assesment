@@ -2,7 +2,6 @@ import { Component, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { firstValueFrom } from 'rxjs';
 import { ApiService, errorMessage } from '../../../core/api.service';
-import { SessionService } from '../../../core/session.service';
 import type { Question, QuestionDetail } from '../../../core/models';
 import { QuestionForm } from '../question-form/question-form';
 
@@ -14,7 +13,6 @@ import { QuestionForm } from '../question-form/question-form';
 })
 export class AssessmentFormPage {
   private readonly api = inject(ApiService);
-  private readonly session = inject(SessionService);
   private readonly router = inject(Router);
 
   protected readonly title = signal('');
@@ -81,15 +79,13 @@ export class AssessmentFormPage {
   async save(event: Event) {
     event.preventDefault();
     this.submitted.set(true);
-    const user = this.session.user();
-    if (this.problems().length || !user) return;
+    if (this.problems().length) return;
 
     this.saving.set(true);
     this.error.set(null);
     try {
       const created = await firstValueFrom(
         this.api.createAssessment({
-          createdBy: user.id,
           title: this.title().trim(),
           description: this.description().trim() || undefined,
           durationMinutes: this.duration(),

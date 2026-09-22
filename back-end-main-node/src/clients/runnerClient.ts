@@ -1,44 +1,7 @@
 import axios from 'axios';
 import { env } from '../config/env';
 import type { ProgrammingLanguage } from '../types/submission';
-
-
-export interface RunnerTestCase {
-  input: string;
-  expectedOutput: string;
-  isVisible: boolean;
-}
-
-export interface RunnerRequest {
-  questionId: number;
-  language: ProgrammingLanguage;
-  code: string;
-  templateCode: string;
-  testCases: RunnerTestCase[];
-}
-
-export type ExecutionStatus =
-  | 'SUCCESS'
-  | 'WRONG_ANSWER'
-  | 'COMPILE_ERROR'
-  | 'RUNTIME_ERROR'
-  | 'TIME_LIMIT_EXCEEDED';
-
-export interface ExecutionResult {
-  status: ExecutionStatus;
-  output?: string;
-  error?: string;
-  testResults?: Array<{
-    testCaseIndex: number;
-    input: string;
-    expectedOutput: string;
-    actualOutput?: string;
-    passed: boolean;
-    error?: string;
-  }>;
-  passedTests?: number;
-  totalTests?: number;
-}
+import type { ExecutionResult, RunnerRequest } from '../types/execution';
 
 const RUNNER_URLS: Record<ProgrammingLanguage, string> = {
   python: env.runners.python,
@@ -46,6 +9,11 @@ const RUNNER_URLS: Record<ProgrammingLanguage, string> = {
   java: env.runners.java,
 };
 
+/**
+ * Envía el código al runner del lenguaje (un contenedor por lenguaje). No lanza error si el
+ * runner falla: devuelve el cuerpo de su respuesta de error o un RUNTIME_ERROR si no responde,
+ * así el envío del estudiante se registra igual con puntaje 0.
+ */
 export async function runCode(request: RunnerRequest): Promise<ExecutionResult> {
   const runnerUrl = RUNNER_URLS[request.language];
 

@@ -1,7 +1,11 @@
 import { Router } from 'express';
 import * as submissionController from '../controllers/submissionController';
+import { requireAuth } from '../middleware/auth';
 
 const router = Router();
+
+// Los intentos son siempre del estudiante de la sesión.
+router.use(requireAuth('student'));
 
 router.get('/', submissionController.listSubmissions);
 router.post('/', submissionController.startAssessment);
