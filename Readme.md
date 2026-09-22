@@ -128,6 +128,54 @@ Cuando termine, abre **http://localhost:4200**.
 La base de datos se crea la primera vez con 3 preguntas (con código inicial en los tres lenguajes y 5
 casos de prueba cada una) y 2 assessments listos para presentar.
 
+### Prueba rápida: resolver el assessment "Algoritmos Simples"
+
+Para ver la plataforma en funcionamiento, entra como `estudiante` / `estudiante`, pulsa **Iniciar** en
+*Assessment Algoritmos Simples* y resuelve sus dos preguntas con las soluciones de abajo. Cada pregunta
+se responde en un lenguaje distinto, para ver que el mismo assessment acepta varios lenguajes.
+
+#### 1. Encuentra el número máximo (10 puntos), en Python
+
+Retorna el valor máximo del arreglo.
+
+```python
+def find_max(arr):
+    return max(arr)
+```
+
+#### 2. Suma números pares (15 puntos), en Java
+
+Retorna la suma de los números pares del arreglo (0 si no hay ninguno).
+
+```java
+public class Solution {
+    public int sumEvenNumbers(int[] arr) {
+        int sum = 0;
+        for (int n : arr) {
+            if (n % 2 == 0) {
+                sum += n;
+            }
+        }
+        return sum;
+    }
+}
+```
+
+En cada pregunta:
+
+1. Pulsa **Resolver**, elige el lenguaje en el editor y pega la solución.
+2. **Ejecutar** corre solo los 2 casos de ejemplo y muestra la salida de cada uno, sin calificar.
+3. **Enviar respuesta** corre los 5 casos, incluidos los 3 ocultos, y guarda el puntaje: cada caso que
+   pasa suma la parte proporcional de los puntos de la pregunta.
+
+Al terminar, pulsa **Finalizar assessment**. Con estas dos soluciones el resultado es 25 de 25 puntos.
+
+Para ver cómo responde la plataforma cuando algo sale mal, puedes probar también:
+
+- una solución incompleta (por ejemplo, `return arr[0]` en la primera pregunta), que da puntaje parcial;
+- un error de sintaxis (por ejemplo, borrar un `;` en Java), que la consola muestra como error de
+  compilación, indicando la línea.
+
 ### Servicios
 
 | Servicio | Dirección | Uso |
@@ -194,6 +242,11 @@ cd front-end && npm ci && npm test
 ## API del nodo principal
 
 Base: `http://localhost:3000/api`. Desde el navegador se accede por `http://localhost:4200/api`.
+
+La especificación completa (OpenAPI 3.0), con los esquemas de cada petición y respuesta, los códigos de
+error y ejemplos, está en [back-end-main-node/openapi.yaml](back-end-main-node/openapi.yaml). Para verla
+de forma interactiva, ábrela en [Swagger Editor](https://editor.swagger.io/) (*File → Import file*) o
+con una extensión de OpenAPI en tu editor.
 
 **Autenticación.** `POST /auth/login` deja la sesión en una cookie `httpOnly` (`tap_session`) con un
 JWT válido por 8 horas; las demás rutas la exigen. El usuario y el rol salen siempre de la sesión,
