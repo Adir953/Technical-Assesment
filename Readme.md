@@ -134,12 +134,25 @@ Para ver la plataforma en funcionamiento, entra como `estudiante` / `estudiante`
 *Assessment Algoritmos Simples* y resuelve sus dos preguntas con las soluciones de abajo. Cada pregunta
 se responde en un lenguaje distinto, para ver que el mismo assessment acepta varios lenguajes.
 
+> [!IMPORTANT]
+> Al elegir un lenguaje, el editor carga el **código inicial** del ejercicio. Escribe tu solución
+> dentro de la función, debajo del comentario `// Escribe tu solución aquí` (`# Escribe tu solución
+> aquí` en Python), y:
+>
+> - **no modifiques el código inicial**: deja igual el nombre de la clase, el de la función, sus
+>   parámetros y sus tipos. La plataforma llama a esa función con los argumentos de cada caso de
+>   prueba; si la cambias, los casos no se pueden ejecutar;
+> - **no elimines el comentario `// Escribe tu solución aquí`**;
+> - reemplaza solo el valor de relleno (`pass` en Python, `return 0;` o `return "";` en Java) por
+>   tu código.
+
 #### 1. Encuentra el número máximo (10 puntos), en Python
 
 Retorna el valor máximo del arreglo.
 
 ```python
 def find_max(arr):
+    # Escribe tu solución aquí
     return max(arr)
 ```
 
@@ -150,6 +163,7 @@ Retorna la suma de los números pares del arreglo (0 si no hay ninguno).
 ```java
 public class Solution {
     public int sumEvenNumbers(int[] arr) {
+        // Escribe tu solución aquí
         int sum = 0;
         for (int n : arr) {
             if (n % 2 == 0) {
@@ -163,7 +177,8 @@ public class Solution {
 
 En cada pregunta:
 
-1. Pulsa **Resolver**, elige el lenguaje en el editor y pega la solución.
+1. Pulsa **Resolver**, elige el lenguaje en el editor y escribe la solución en el código inicial,
+   debajo del comentario.
 2. **Ejecutar** corre solo los 2 casos de ejemplo y muestra la salida de cada uno, sin calificar.
 3. **Enviar respuesta** corre los 5 casos, incluidos los 3 ocultos, y guarda el puntaje: cada caso que
    pasa suma la parte proporcional de los puntos de la pregunta.
@@ -244,7 +259,7 @@ cd front-end && npm ci && npm test
 Base: `http://localhost:3000/api`. Desde el navegador se accede por `http://localhost:4200/api`.
 
 La especificación completa (OpenAPI 3.0), con los esquemas de cada petición y respuesta, los códigos de
-error y ejemplos, está en [back-end-main-node/openapi.yaml](back-end-main-node/openapi.yaml). Para verla
+error y ejemplos, está en [back-end-main-node/main-node-OAS.yaml](back-end-main-node/main-node-OAS.yaml). Para verla
 de forma interactiva, ábrela en [Swagger Editor](https://editor.swagger.io/) (*File → Import file*) o
 con una extensión de OpenAPI en tu editor.
 
@@ -312,12 +327,3 @@ El código enviado por los candidatos se considera no confiable. Cada runner:
   número máximo de procesos (lo que protege contra bucles infinitos, consumo de memoria y *fork bombs*).
 - No pasa las variables de entorno del servidor al código, y al terminar elimina los procesos que
   este haya dejado vivos.
-
-El detalle de cada medida y el motivo de cada opción de Docker están en
-[DOCKER_EXPLICADO.md](DOCKER_EXPLICADO.md).
-
-## Documentación adicional
-
-- [DOCKER_EXPLICADO.md](DOCKER_EXPLICADO.md): cada línea de `docker-compose.yaml` y de los
-  Dockerfile, explicada.
-- [database/DATABASE_SCHEMA.md](database/DATABASE_SCHEMA.md): tablas y relaciones de la base de datos.
