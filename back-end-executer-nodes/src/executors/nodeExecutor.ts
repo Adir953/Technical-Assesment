@@ -1,30 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { createWorkDir, evaluateRun, runSandboxed, type TestOutcome } from './sandbox';
-import { checkSyntax } from './syntaxCheck';
+import type { ExecutionResult, TestCase } from '../types/execution';
+import { createWorkDir, evaluateRun, runSandboxed } from '../utils/sandbox';
+import { checkSyntax } from '../utils/syntaxCheck';
+import { runTestCases } from '../utils/testRunner';
 
-interface TestCase {
-  input: string;
-  expectedOutput: string;
-  isVisible: boolean;
-}
-
-interface ExecutionResult {
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'COMPILE_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
-  output?: string;
-  error?: string;
-  testResults?: Array<{
-    testCaseIndex: number;
-    input: string;
-    expectedOutput: string;
-    actualOutput?: string;
-    passed: boolean;
-    error?: string;
-  }>;
-  passedTests?: number;
-  totalTests?: number;
-}
-
+/**
+ * Arma `solution.js` con el código del candidato más un harness que lee una línea JSON de stdin
+ * (la lista de argumentos), llama a la función del código inicial y imprime el resultado en JSON.
+ * Primero valida la sintaxis con `node --check` y luego ejecuta un proceso por caso.
+ */
 export async function executeJavaScript(
   userCode: string,
   templateCode: string,
@@ -74,10 +59,14 @@ export async function executeJavaScript(
       return { status: 'COMPILE_ERROR', error: syntaxError, passedTests: 0, totalTests: testCases.length };
     }
 
-    // Execute test cases
-    const testResults = await runTestCases(scriptPath, testCases, timeoutMs);
-
-    return testResults;
+    return await runTestCases(testCases, async (testCase) => {
+      const run = await runSandboxed('node', ['--max-old-space-size=128', scriptPath], {
+        cwd: tmpDir,
+        timeoutMs,
+        input: testCase.input || '',
+      });
+      return evaluateRun(run, testCase.expectedOutput);
+    });
   } catch (error) {
     return {
       status: 'RUNTIME_ERROR',
@@ -90,62 +79,4 @@ export async function executeJavaScript(
       console.error('Cleanup error:', e);
     }
   }
-}
-
-async function runTestCases(
-  scriptPath: string,
-  testCases: TestCase[],
-  timeoutMs: number
-): Promise<ExecutionResult> {
-  const testResults = [];
-  let passedTests = 0;
-  let firstError: ExecutionResult | null = null;
-
-  for (let i = 0; i < testCases.length; i++) {
-    const testCase = testCases[i];
-    const result = await runSingleTest(scriptPath, testCase, timeoutMs);
-
-    testResults.push({
-      testCaseIndex: i,
-      input: testCase.input,
-      expectedOutput: testCase.expectedOutput,
-      actualOutput: result.output,
-      passed: result.passed,
-      error: result.error,
-    });
-
-    if (result.passed) {
-      passedTests++;
-    } else if (!firstError) {
-      firstError = {
-        status: result.status,
-        error: result.error,
-        output: result.output,
-      };
-    }
-  }
-
-  const allPassed = passedTests === testCases.length;
-
-  return {
-    status: allPassed ? 'SUCCESS' : firstError?.status || 'WRONG_ANSWER',
-    error: allPassed ? undefined : firstError?.error,
-    testResults,
-    passedTests,
-    totalTests: testCases.length,
-    output: allPassed ? 'All tests passed!' : undefined,
-  };
-}
-
-async function runSingleTest(
-  scriptPath: string,
-  testCase: TestCase,
-  timeoutMs: number
-): Promise<TestOutcome> {
-  const run = await runSandboxed('node', ['--max-old-space-size=128', scriptPath], {
-    cwd: path.dirname(scriptPath),
-    timeoutMs,
-    input: testCase.input || '',
-  });
-  return evaluateRun(run, testCase.expectedOutput);
 }

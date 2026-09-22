@@ -21,6 +21,7 @@ import type {
   QuestionSubmissionWithQuestion,
 } from '../types/submission';
 import type { TestCase } from '../types/question';
+import type { ExecutionResult } from '../types/execution';
 
 export { type SubmitSolutionInput, type SolutionResult, type SubmissionDetail };
 
@@ -29,6 +30,10 @@ export async function listByStudent(studentId: number): Promise<AssessmentSubmis
   return assessmentSubmissionRepository.findByStudent(studentId);
 }
 
+/**
+ * Abre un intento nuevo. Un estudiante solo puede tener un intento en curso por assessment
+ * (409 si ya existe). Los puntos posibles quedan guardados en el intento desde el inicio.
+ */
 export async function startAssessment(
   studentId: number,
   assessmentId: number
@@ -60,6 +65,12 @@ export async function startAssessment(
   });
 }
 
+/**
+ * Califica la respuesta de una pregunta. A diferencia de "Ejecutar", corre todos los casos,
+ * incluidos los ocultos, y el puntaje es proporcional a los casos aprobados
+ * (4 de 5 en una pregunta de 10 puntos = 8). El envío y el resultado de cada caso se guardan
+ * en una sola transacción. Se permiten varios envíos por pregunta; cuenta el último.
+ */
 export async function submitSolution(input: SubmitSolutionInput): Promise<SolutionResult> {
   const submission = await assessmentSubmissionRepository.findById(
     input.assessmentSubmissionId
@@ -140,6 +151,10 @@ export async function submitSolution(input: SubmitSolutionInput): Promise<Soluti
   return { questionSubmission, status: execution.status, testCaseResults };
 }
 
+/**
+ * Cierra el intento y fija el puntaje final. Después de esto ya no se aceptan envíos.
+ * Si se acabó el tiempo, el front llama aquí con lo que el estudiante alcanzó a enviar.
+ */
 export async function completeAssessment(
   assessmentSubmissionId: number
 ): Promise<AssessmentSubmission> {
@@ -179,10 +194,12 @@ export async function getSubmissionDetail(assessmentSubmissionId: number): Promi
   return { ...submission, questionSubmissions: detailed };
 }
 
+// El runner responde los resultados en el mismo orden en que recibió los casos. Si no hay
+// resultado (p. ej. error de compilación), el caso queda como fallido con el error general.
 function buildTestCaseResults(
   questionSubmissionId: number,
   cases: TestCase[],
-  execution: ReturnType<typeof runCode> extends Promise<infer T> ? T : never
+  execution: ExecutionResult
 ) {
   return cases.map((testCase, index) => {
     const result = execution.testResults?.[index];
@@ -198,6 +215,8 @@ function buildTestCaseResults(
   });
 }
 
+// Depende de que el repositorio devuelva los envíos del más reciente al más antiguo:
+// el primero que aparece de cada pregunta es el que cuenta.
 function sumLatestScorePerQuestion(attempts: QuestionSubmissionWithQuestion[]): number {
   const latestByQuestion = new Map<number, QuestionSubmission>();
 

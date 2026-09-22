@@ -2,31 +2,10 @@ import { spawn } from 'child_process';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { env } from '../config/env';
+import type { SandboxResult, TestOutcome } from '../types/execution';
 
-/**
- * Usuario sin privilegios que ejecuta el código del candidato (se crea en los Dockerfile).
- * Sin SANDBOX_UID (desarrollo local fuera de Docker) el código corre con el usuario actual.
- */
-const SANDBOX_UID = process.env.SANDBOX_UID ? Number(process.env.SANDBOX_UID) : undefined;
-const SANDBOX_GID = process.env.SANDBOX_GID ? Number(process.env.SANDBOX_GID) : SANDBOX_UID;
-const MAX_OUTPUT_BYTES = Number(process.env.MAX_OUTPUT_BYTES ?? 64 * 1024);
-
-export interface SandboxResult {
-  stdout: string;
-  stderr: string;
-  exitCode: number | null;
-  signal: NodeJS.Signals | null;
-  timedOut: boolean;
-  outputExceeded: boolean;
-  spawnError?: string;
-}
-
-export interface TestOutcome {
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
-  output?: string;
-  passed: boolean;
-  error?: string;
-}
+const { uid: SANDBOX_UID, gid: SANDBOX_GID, maxOutputBytes: MAX_OUTPUT_BYTES } = env.sandbox;
 
 /**
  * Directorio de trabajo de una ejecución. Lo crea el servidor y el usuario sandbox solo puede
@@ -161,7 +140,7 @@ export function evaluateRun(run: SandboxResult, expectedOutput: unknown): TestOu
 
 /**
  * Mata todos los procesos del usuario sandbox, incluidos los que el código haya lanzado en
- * segundo plano. Es seguro porque el runner atiende una ejecución a la vez (ver runner.ts).
+ * segundo plano. Es seguro porque el runner atiende una ejecución a la vez (ver services/executionService.ts).
  * Repite el barrido porque un fork bomb puede crear procesos mientras se matan los anteriores.
  */
 function killSandboxProcesses(): void {

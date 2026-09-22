@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 
+/** Error de negocio con su código HTTP. Los servicios lanzan estos y el errorHandler los responde. */
 export class AppError extends Error {
   constructor(
     message: string,
@@ -18,6 +19,10 @@ interface ApiError extends Error {
   status?: number;
 }
 
+/**
+ * Último middleware de Express. Responde todos los errores con el formato
+ * `{ error: { status, message, timestamp } }`; lo que no sea AppError sale como 500 y se registra.
+ */
 export const errorHandler = (
   err: ApiError,
   _req: Request,

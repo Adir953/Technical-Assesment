@@ -26,6 +26,10 @@ export async function getAssessment(id: number): Promise<AssessmentDetail> {
   return { ...assessment, questions, totalPossiblePoints };
 }
 
+/**
+ * Crea el assessment y lo vincula con sus preguntas. El orden de `questionIds` define el orden
+ * de las preguntas y los ids repetidos se ignoran. Falla con 404 si alguna pregunta no existe.
+ */
 export async function createAssessment(
   input: CreateAssessmentInput
 ): Promise<AssessmentDetail> {

@@ -1,30 +1,15 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { createWorkDir, evaluateRun, runSandboxed, type TestOutcome } from './sandbox';
-import { checkSyntax } from './syntaxCheck';
+import type { ExecutionResult, TestCase } from '../types/execution';
+import { createWorkDir, evaluateRun, runSandboxed } from '../utils/sandbox';
+import { checkSyntax } from '../utils/syntaxCheck';
+import { runTestCases } from '../utils/testRunner';
 
-interface TestCase {
-  input: string;
-  expectedOutput: string;
-  isVisible: boolean;
-}
-
-interface ExecutionResult {
-  status: 'SUCCESS' | 'WRONG_ANSWER' | 'COMPILE_ERROR' | 'RUNTIME_ERROR' | 'TIME_LIMIT_EXCEEDED';
-  output?: string;
-  error?: string;
-  testResults?: Array<{
-    testCaseIndex: number;
-    input: string;
-    expectedOutput: string;
-    actualOutput?: string;
-    passed: boolean;
-    error?: string;
-  }>;
-  passedTests?: number;
-  totalTests?: number;
-}
-
+/**
+ * Igual que el ejecutor de JavaScript: agrega un harness que lee los argumentos en JSON de stdin
+ * y llama a la primera función (`def`) del código inicial. La sintaxis se valida con
+ * `py_compile` para reportar COMPILE_ERROR antes de correr los casos.
+ */
 export async function executePython(
   userCode: string,
   templateCode: string,
@@ -67,10 +52,14 @@ export async function executePython(
       return { status: 'COMPILE_ERROR', error: syntaxError, passedTests: 0, totalTests: testCases.length };
     }
 
-    // Execute test cases
-    const testResults = await runTestCases(scriptPath, testCases, timeoutMs);
-
-    return testResults;
+    return await runTestCases(testCases, async (testCase) => {
+      const run = await runSandboxed('python3', [scriptPath], {
+        cwd: tmpDir,
+        timeoutMs,
+        input: testCase.input || '',
+      });
+      return evaluateRun(run, testCase.expectedOutput);
+    });
   } catch (error) {
     return {
       status: 'RUNTIME_ERROR',
@@ -84,62 +73,4 @@ export async function executePython(
       console.error('Cleanup error:', e);
     }
   }
-}
-
-async function runTestCases(
-  scriptPath: string,
-  testCases: TestCase[],
-  timeoutMs: number
-): Promise<ExecutionResult> {
-  const testResults = [];
-  let passedTests = 0;
-  let firstError: ExecutionResult | null = null;
-
-  for (let i = 0; i < testCases.length; i++) {
-    const testCase = testCases[i];
-    const result = await runSingleTest(scriptPath, testCase, timeoutMs);
-
-    testResults.push({
-      testCaseIndex: i,
-      input: testCase.input,
-      expectedOutput: testCase.expectedOutput,
-      actualOutput: result.output,
-      passed: result.passed,
-      error: result.error,
-    });
-
-    if (result.passed) {
-      passedTests++;
-    } else if (!firstError) {
-      firstError = {
-        status: result.status,
-        error: result.error,
-        output: result.output,
-      };
-    }
-  }
-
-  const allPassed = passedTests === testCases.length;
-
-  return {
-    status: allPassed ? 'SUCCESS' : firstError?.status || 'WRONG_ANSWER',
-    error: allPassed ? undefined : firstError?.error,
-    testResults,
-    passedTests,
-    totalTests: testCases.length,
-    output: allPassed ? 'All tests passed!' : undefined,
-  };
-}
-
-async function runSingleTest(
-  scriptPath: string,
-  testCase: TestCase,
-  timeoutMs: number
-): Promise<TestOutcome> {
-  const run = await runSandboxed('python3', [scriptPath], {
-    cwd: path.dirname(scriptPath),
-    timeoutMs,
-    input: testCase.input || '',
-  });
-  return evaluateRun(run, testCase.expectedOutput);
 }
